@@ -1,0 +1,16 @@
+{
+  "name": "aeje-career-calculator",
+  "version": "3.0.0",
+  "description": "AE/JE Career Calculator — Testbook SuperCoaching",
+  "private": true,
+  "scripts": {
+    "start": "echo 'Static site — open index.html in a browser'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.7",
+    "@anthropic-ai/sdk": "^0.20.6"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
