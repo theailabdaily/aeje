@@ -1,0 +1,2801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AE/JE Career Calculator | Testbook SuperCoaching</title>
+  <meta name="description" content="Take this 90-second quiz to find your top 3 AE/JE exam matches and see your 10-year salary projection. Free tool by Testbook SuperCoaching." />
+  <meta property="og:title" content="AE/JE Career Calculator — Testbook SuperCoaching" />
+  <meta property="og:description" content="Find your top 3 AE/JE exam matches + 10-year salary projection in 90 seconds." />
+  <meta property="og:type" content="website" />
+
+  <!-- Suppress dev warnings (cosmetic only — they don't affect users) -->
+  <script>
+    (function(){
+      const o = console.warn;
+      console.warn = function(){
+        const m = arguments[0];
+        if (typeof m === 'string' && (m.indexOf('cdn.tailwindcss.com')>-1 || m.indexOf('in-browser Babel')>-1)) return;
+        o.apply(console, arguments);
+      };
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; }
+    .loading-fallback { display: flex; justify-content: center; align-items: center; height: 100vh; color: #10B981; flex-direction: column; gap: 8px; }
+    @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadein { animation: fadein 0.4s ease-out; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    .animate-bounce { animation: bounce 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="loading-fallback">
+      <div style="font-size:14px;font-weight:500;">Loading Testbook SuperCoaching...</div>
+      <div style="font-size:11px;color:#9CA3AF;">AE/JE Career Calculator</div>
+    </div>
+  </div>
+
+  <script>
+    // Show error if libraries fail to load
+    setTimeout(function(){
+      if (window.__appMounted) return;
+      var missing = [];
+      if (typeof React === 'undefined') missing.push('React');
+      if (typeof ReactDOM === 'undefined') missing.push('ReactDOM');
+      if (typeof Recharts === 'undefined') missing.push('Recharts');
+      if (missing.length) {
+        document.getElementById('root').innerHTML = '<div class="loading-fallback"><div style="color:#DC2626;font-weight:bold;">Failed to load: ' + missing.join(', ') + '</div><div style="font-size:11px;color:#9CA3AF;">Check internet connection and refresh.</div></div>';
+      }
+    }, 5000);
+    window.addEventListener('error', function(e) {
+      if (window.__appMounted) return;
+      console.error('Init error:', e);
+      var root = document.getElementById('root');
+      if (root && !window.__appMounted) {
+        root.innerHTML = '<div class="loading-fallback"><div style="color:#DC2626;font-weight:bold;">App initialization failed</div><div style="font-size:12px;max-width:600px;padding:16px;color:#374151;">' + (e.message || 'Unknown error') + '</div></div>';
+      }
+    });
+  </script>
+
+  <script>
+// ============================================================
+// AE/JE CAREER CALCULATOR v3 — Full feature build
+// 14 features: Share, PDF, 8th CPC, Compare, More states, City override,
+// Hindi, Loading skeleton, AI chat, Vacancy alerts, Toppers, Career timeline,
+// Inflation calc, plus all v2 features
+// ============================================================
+
+const {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback
+} = React;
+const {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+  Legend,
+  BarChart,
+  Bar,
+  Line,
+  ComposedChart
+} = Recharts;
+
+// ============================================================
+// I18N — Hindi translations
+// ============================================================
+const I18N = {
+  en: {
+    title: 'AE/JE CAREER CALCULATOR',
+    headline1: 'Confused which AE/JE exam',
+    headline2: 'you should actually fill?',
+    subhead: "Take this 90-second quiz to discover your top 3 exam matches and see exactly how much you'll earn over 10 years.",
+    startQuiz: 'Start the Quiz',
+    examsAnalyzed: 'Exams analyzed',
+    secondsToResult: 'Seconds to result',
+    salaryProjection: 'Salary projection',
+    verifiedData: 'Verified: 7th CPC Pay Matrix, DA at 60% (Jan 2026)',
+    questionOf: 'Question {n} of {total}',
+    percentComplete: '{p}% complete',
+    back: '\u2190 Back',
+    matchesReady: 'Your matches are ready!',
+    unlockSubhead: 'Unlock your top 3 exam recommendations + 10-year salary projection',
+    yourName: 'Your Name',
+    mobileNumber: 'Mobile Number',
+    emailAddress: 'Email Address',
+    unlockReport: 'Unlock My Report',
+    instantDelivery: "We'll send your report on WhatsApp + Email instantly",
+    noMatches: 'No exact matches found',
+    noMatchesSub: 'Try retaking with broader options like "Anywhere in India".',
+    retakeQuiz: 'Retake Quiz',
+    reportUnlocked: 'REPORT UNLOCKED',
+    hiName: 'Hi {name}, here are your top 3 matches',
+    personalisedDesc: 'Personalised based on your branch, qualification, and goals',
+    earningsProjection: 'Earnings projection if you crack',
+    tenYearTotal: '10-year total',
+    startingBasic: 'Starting Basic',
+    y1Monthly: 'Y1 Monthly',
+    promotionPath: 'Promotion Path',
+    payLevel: 'Pay Level',
+    probationNote: 'Probation note:',
+    probationDesc: 'First {y} years on fixed pay of {p}/month basic. Full pay matrix from Year {n}.',
+    cumulativeEarnings: '10-Year Cumulative Earnings',
+    classCity: '{c}-Class City',
+    joinSC: 'Join SuperCoaching - Get 60% Off',
+    downloadPDF: 'Download Full PDF Report',
+    shareWithParents: 'Share with Parents',
+    compare: 'Compare 2 Exams',
+    cpcMode: '8th CPC Scenario',
+    cpcOff: 'No 8th CPC (current)',
+    cpcConservative: 'Conservative (2.0x)',
+    cpcAmbitious: 'Ambitious (2.86x)',
+    inflationToggle: 'Show inflation-adjusted',
+    cityOverride: 'Posting city override',
+    askCounsellor: 'Ask AI Counsellor',
+    setVacancyAlert: 'Set Vacancy Alert',
+    careerTimeline: 'Career Timeline',
+    yearTitle: 'Year',
+    bestFit: 'BEST FIT',
+    match: 'match',
+    posts: 'posts',
+    opsRestored: 'OPS PENSION RESTORED',
+    matchN: 'Match #{n}',
+    builtWith: 'Built with verified 7th CPC data',
+    qualLabel: 'What is your qualification?',
+    diploma: 'Diploma in Engineering',
+    diplomaSub: '3-year polytechnic',
+    btech: 'B.Tech / B.E.',
+    btechSub: '4-year degree',
+    branchLabel: 'Which branch?',
+    civil: 'Civil',
+    civilSub: 'Construction, Structures',
+    mechanical: 'Mechanical',
+    mechSub: 'Machines, Manufacturing',
+    electrical: 'Electrical',
+    elecSub: 'Power, Wiring',
+    electronics: 'Electronics',
+    enSub: 'Signal, Telecom',
+    ageLabel: 'Your current age?',
+    age23m: 'Below 23',
+    age2326: '23 - 26',
+    age2730: '27 - 30',
+    age30p: '30 and above',
+    stateLabel: 'Which state are you from?',
+    relocateLabel: 'Open to relocate for posting?',
+    anywhere: 'Anywhere in India',
+    anywhereSub: 'Maximum opportunities',
+    flexible: 'Prefer home state but flexible',
+    homeOnly: 'Only home state',
+    homeOnlySub: 'Limits central exams',
+    attemptsLabel: 'Your attempt history?',
+    firstAttempt: 'First attempt',
+    firstSub: 'Fresh aspirant',
+    attempt12: '1-2 prior attempts',
+    attempt3p: '3+ prior attempts',
+    a3pSub: 'Repeat aspirant',
+    hoursLabel: 'Hours per day for prep?',
+    hours4m: 'Less than 4 hrs',
+    hours46: '4 - 6 hrs',
+    hours68: '6 - 8 hrs',
+    hours8p: '8+ hrs',
+    h8Sub: 'Full-time aspirant',
+    chooseLanguage: 'भाषा / Language',
+    closeChat: 'Close',
+    typeMessage: 'Type your question...',
+    send: 'Send',
+    counsellorWelcome: "Hi! I'm your AE/JE Career Counsellor. Ask me anything about your exam strategy, salary, eligibility, or which exam to focus on."
+  },
+  hi: {
+    title: 'AE/JE करियर कैलकुलेटर',
+    headline1: 'समझ नहीं आ रहा कौन-सा AE/JE एग्ज़ाम',
+    headline2: 'आपको असल में देना चाहिए?',
+    subhead: 'यह 90 सेकंड की क्विज़ लें — अपने टॉप 3 एग्ज़ाम मैच और 10 साल की कमाई का पूरा अनुमान देखें।',
+    startQuiz: 'क्विज़ शुरू करें',
+    examsAnalyzed: 'एग्ज़ाम कवर',
+    secondsToResult: 'सेकंड में रिज़ल्ट',
+    salaryProjection: 'सैलरी प्रोजेक्शन',
+    verifiedData: 'वेरिफाइड: 7वां वेतन आयोग, DA 60% (जनवरी 2026)',
+    questionOf: 'प्रश्न {n} / {total}',
+    percentComplete: '{p}% पूरा',
+    back: '\u2190 पीछे',
+    matchesReady: 'आपके मैच तैयार हैं!',
+    unlockSubhead: 'अपने टॉप 3 एग्ज़ाम और 10 साल की सैलरी प्रोजेक्शन अनलॉक करें',
+    yourName: 'आपका नाम',
+    mobileNumber: 'मोबाइल नंबर',
+    emailAddress: 'ईमेल',
+    unlockReport: 'रिपोर्ट अनलॉक करें',
+    instantDelivery: 'WhatsApp और ईमेल पर तुरंत भेजेंगे',
+    noMatches: 'कोई मैच नहीं मिला',
+    noMatchesSub: 'फिर से कोशिश करें — "Anywhere in India" चुनें।',
+    retakeQuiz: 'फिर से क्विज़ लें',
+    reportUnlocked: 'रिपोर्ट अनलॉक',
+    hiName: 'नमस्ते {name}, ये हैं आपके टॉप 3 मैच',
+    personalisedDesc: 'आपकी ब्रांच, क्वालिफिकेशन और गोल के आधार पर',
+    earningsProjection: 'कमाई का अनुमान — अगर आप क्रैक करें',
+    tenYearTotal: '10 साल टोटल',
+    startingBasic: 'शुरुआती बेसिक',
+    y1Monthly: 'पहले साल मासिक',
+    promotionPath: 'प्रमोशन पाथ',
+    payLevel: 'पे लेवल',
+    probationNote: 'प्रोबेशन नोट:',
+    probationDesc: 'पहले {y} साल फिक्स्ड पे {p}/महीना बेसिक। पूरा पे मैट्रिक्स साल {n} से।',
+    cumulativeEarnings: '10 साल की कुल कमाई',
+    classCity: '{c}-क्लास सिटी',
+    joinSC: 'SuperCoaching जॉइन करें - 60% छूट',
+    downloadPDF: 'पूरी PDF रिपोर्ट डाउनलोड',
+    shareWithParents: 'पैरेंट्स को शेयर करें',
+    compare: '2 एग्ज़ाम तुलना करें',
+    cpcMode: '8वां वेतन आयोग',
+    cpcOff: 'अभी का (कोई 8वां CPC नहीं)',
+    cpcConservative: 'कंज़र्वेटिव (2.0x)',
+    cpcAmbitious: 'एम्बिशस (2.86x)',
+    inflationToggle: 'महंगाई-समायोजित दिखाएं',
+    cityOverride: 'पोस्टिंग शहर बदलें',
+    askCounsellor: 'AI काउंसलर से पूछें',
+    setVacancyAlert: 'वैकेंसी अलर्ट सेट करें',
+    careerTimeline: 'करियर टाइमलाइन',
+    yearTitle: 'साल',
+    bestFit: 'सबसे बेस्ट',
+    match: 'मैच',
+    posts: 'पोस्ट',
+    opsRestored: 'OPS पेंशन बहाल',
+    matchN: 'मैच #{n}',
+    builtWith: 'वेरिफाइड 7वें CPC डेटा से',
+    qualLabel: 'आपकी क्वालिफिकेशन?',
+    diploma: 'डिप्लोमा इन इंजीनियरिंग',
+    diplomaSub: '3 साल पॉलिटेक्निक',
+    btech: 'B.Tech / B.E.',
+    btechSub: '4 साल डिग्री',
+    branchLabel: 'कौन सी ब्रांच?',
+    civil: 'सिविल',
+    civilSub: 'कंस्ट्रक्शन, स्ट्रक्चर्स',
+    mechanical: 'मैकेनिकल',
+    mechSub: 'मशीन, मैन्युफैक्चरिंग',
+    electrical: 'इलेक्ट्रिकल',
+    elecSub: 'पावर, वायरिंग',
+    electronics: 'इलेक्ट्रॉनिक्स',
+    enSub: 'सिग्नल, टेलीकॉम',
+    ageLabel: 'आपकी अभी की उम्र?',
+    age23m: '23 से कम',
+    age2326: '23 - 26',
+    age2730: '27 - 30',
+    age30p: '30 और ऊपर',
+    stateLabel: 'आप किस राज्य से हैं?',
+    relocateLabel: 'पोस्टिंग के लिए कहीं भी जा सकते हैं?',
+    anywhere: 'भारत में कहीं भी',
+    anywhereSub: 'ज़्यादा मौके',
+    flexible: 'होम स्टेट प्रिफरेंस लेकिन फ्लेक्सिबल',
+    homeOnly: 'सिर्फ होम स्टेट',
+    homeOnlySub: 'सेंट्रल एग्ज़ाम सीमित',
+    attemptsLabel: 'अटेम्प्ट हिस्ट्री?',
+    firstAttempt: 'पहला अटेम्प्ट',
+    firstSub: 'फ्रेश एस्पिरेंट',
+    attempt12: '1-2 पहले अटेम्प्ट',
+    attempt3p: '3+ पहले अटेम्प्ट',
+    a3pSub: 'रिपीट एस्पिरेंट',
+    hoursLabel: 'रोज़ कितने घंटे पढ़ाई?',
+    hours4m: '4 घंटे से कम',
+    hours46: '4 - 6 घंटे',
+    hours68: '6 - 8 घंटे',
+    hours8p: '8+ घंटे',
+    h8Sub: 'फुल-टाइम एस्पिरेंट',
+    chooseLanguage: 'भाषा / Language',
+    closeChat: 'बंद करें',
+    typeMessage: 'अपना सवाल लिखें...',
+    send: 'भेजें',
+    counsellorWelcome: 'नमस्ते! मैं आपका AE/JE करियर काउंसलर हूँ। एग्ज़ाम स्ट्रैटेजी, सैलरी, या किस एग्ज़ाम पर फोकस करें — कुछ भी पूछें।'
+  }
+};
+const t = (lang, key, vars) => {
+  let s = I18N[lang] && I18N[lang][key] || I18N.en[key] || key;
+  if (vars) Object.keys(vars).forEach(k => {
+    s = s.split('{' + k + '}').join(vars[k]);
+  });
+  return s;
+};
+
+// ============================================================
+// EXAM DATABASE — 13 exams with full salary data
+// ============================================================
+const EXAMS = {
+  'ssc-je': {
+    name: 'SSC JE',
+    fullName: 'SSC Junior Engineer',
+    payLevel: 6,
+    basicPay: 35400,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'CPWD, MES, BRO, CWC',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 1731,
+    nextNotification: 'June 2026',
+    promotionPath: 'JE \u2192 AE \u2192 EE',
+    promotionYear: 6,
+    promotionBump: 1.18,
+    type: 'Central JE',
+    hraTier: 'central',
+    why: 'Central govt, stable promotions, all-India postings',
+    whyHi: 'केंद्र सरकार, स्थिर प्रमोशन, अखिल भारतीय पोस्टिंग',
+    scope: 'central'
+  },
+  'rrb-je': {
+    name: 'RRB JE',
+    fullName: 'Railway Junior Engineer',
+    payLevel: 6,
+    basicPay: 35400,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'Track, Signal, Mech, Electrical',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical', 'electronics'],
+    vacancies: 7951,
+    nextNotification: 'Aug-Sep 2026',
+    promotionPath: 'JE \u2192 SSE \u2192 ADEN',
+    promotionYear: 5,
+    promotionBump: 1.20,
+    type: 'Central JE',
+    hraTier: 'central',
+    why: 'Highest vacancies (7,951), railway perks, PLB bonus',
+    whyHi: 'सबसे ज़्यादा वैकेंसी (7,951), रेलवे सुविधाएं, PLB बोनस',
+    scope: 'central'
+  },
+  'dmrc-je': {
+    name: 'DMRC JE',
+    fullName: 'Delhi Metro Rail Junior Engineer',
+    payLevel: 0,
+    basicPay: 37000,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'Civil, Electrical, Electronics, Mech',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical', 'electronics'],
+    vacancies: 350,
+    nextNotification: 'Variable',
+    promotionPath: 'JE \u2192 AM \u2192 DM',
+    promotionYear: 6,
+    promotionBump: 1.15,
+    type: 'PSU JE',
+    hraTier: 'x-only',
+    why: 'IDA-PSU scale, 35% Cafeteria perks, Delhi posting',
+    whyHi: 'IDA-PSU स्केल, 35% कैफेटेरिया परक्स, दिल्ली पोस्टिंग',
+    scope: 'state',
+    stateLink: 'delhi'
+  },
+  'uppsc-ae': {
+    name: 'UPPSC AE',
+    fullName: 'UP PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Irrigation, Public Health',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 600,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE \u2192 CE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Group B Gazetted, home state UP, officer authority',
+    whyHi: 'ग्रुप B गज़ेटेड, होम स्टेट UP, ऑफिसर अथॉरिटी',
+    scope: 'state',
+    stateLink: 'up'
+  },
+  'bpsc-ae': {
+    name: 'BPSC AE',
+    fullName: 'Bihar PSC Assistant Engineer',
+    payLevel: 9,
+    basicPay: 53100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Water Resources, Building',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 700,
+    nextNotification: 'Q4 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE',
+    promotionYear: 7,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Bihar home state, Class II Gazetted',
+    whyHi: 'बिहार होम स्टेट, क्लास II गज़ेटेड',
+    scope: 'state',
+    stateLink: 'bihar'
+  },
+  'mppsc-ae': {
+    name: 'MPPSC AE',
+    fullName: 'MP PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Water Resources, PHE',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 350,
+    nextNotification: 'Q2 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE \u2192 CE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Class I Gazetted, MP home state',
+    whyHi: 'क्लास I गज़ेटेड, MP होम स्टेट',
+    scope: 'state',
+    stateLink: 'mp'
+  },
+  'rpsc-ae': {
+    name: 'RPSC AEN',
+    fullName: 'Rajasthan PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: 33800,
+    probationYears: 2,
+    departments: 'PWD, Water Resources, PHED',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 280,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AEN \u2192 XEN \u2192 SE \u2192 CE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'OPS restored, no NPS deduction, OPS pension',
+    whyHi: 'OPS बहाल, NPS कटौती नहीं, गारंटीड पेंशन',
+    scope: 'state',
+    stateLink: 'rajasthan',
+    pension: 'OPS'
+  },
+  'hppsc-ae': {
+    name: 'HPPSC AE',
+    fullName: 'Himachal PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'IPH, PWD, MPP & Power',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 100,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE',
+    promotionYear: 4,
+    promotionBump: 1.17,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'OPS restored, 4-tier auto-upgrade pay',
+    whyHi: 'OPS बहाल, 4-स्तरीय ऑटो-अपग्रेड पे',
+    scope: 'state',
+    stateLink: 'hp',
+    pension: 'OPS'
+  },
+  'gpsc-ae': {
+    name: 'GPSC AE',
+    fullName: 'Gujarat PSC Assistant Engineer',
+    payLevel: 8,
+    basicPay: 44900,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'R&B, Water Supply, Narmada',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 49,
+    nextNotification: 'Q4 2026',
+    promotionPath: 'AE \u2192 DyEE \u2192 EE',
+    promotionYear: 8,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Gujarat home state, Class II Gazetted',
+    whyHi: 'गुजरात होम स्टेट, क्लास II गज़ेटेड',
+    scope: 'state',
+    stateLink: 'gujarat'
+  },
+  'tnpsc-ae': {
+    name: 'TNPSC AE',
+    fullName: 'Tamil Nadu PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Highways, Rural Dev',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 200,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 AEE \u2192 EE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Tamil Nadu home state, Group I-A',
+    whyHi: 'तमिलनाडु होम स्टेट, ग्रुप I-A',
+    scope: 'state',
+    stateLink: 'tn'
+  },
+  'kpsc-ae': {
+    name: 'KPSC AE',
+    fullName: 'Karnataka PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Irrigation, Minor Irrigation',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 150,
+    nextNotification: 'Q4 2026',
+    promotionPath: 'AE \u2192 AEE \u2192 EE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Karnataka home state, Group A',
+    whyHi: 'कर्नाटक होम स्टेट, ग्रुप A',
+    scope: 'state',
+    stateLink: 'ka'
+  },
+  'appsc-ae': {
+    name: 'APPSC AE',
+    fullName: 'Andhra Pradesh PSC Assistant Engineer',
+    payLevel: 9,
+    basicPay: 53100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PR&RD, Irrigation, R&B',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 120,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 DEE \u2192 EE',
+    promotionYear: 7,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'AP home state, Group I',
+    whyHi: 'AP होम स्टेट, ग्रुप I',
+    scope: 'state',
+    stateLink: 'ap'
+  },
+  'tspsc-ae': {
+    name: 'TSPSC AE',
+    fullName: 'Telangana PSC Assistant Engineer',
+    payLevel: 9,
+    basicPay: 53100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PR, Irrigation, R&B',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 100,
+    nextNotification: 'Q4 2026',
+    promotionPath: 'AE \u2192 DEE \u2192 EE',
+    promotionYear: 7,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Telangana home state, Group I',
+    whyHi: 'तेलंगाना होम स्टेट, ग्रुप I',
+    scope: 'state',
+    stateLink: 'tg'
+  },
+  'kpsc-kerala-ae': {
+    name: 'Kerala PSC AE',
+    fullName: 'Kerala PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Irrigation, KSEB',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 80,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 AEE \u2192 EE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Kerala home state, Class I Gazetted',
+    whyHi: 'केरल होम स्टेट, क्लास I गज़ेटेड',
+    scope: 'state',
+    stateLink: 'kl'
+  },
+  'wbpsc-ae': {
+    name: 'WBPSC AE',
+    fullName: 'West Bengal PSC Assistant Engineer',
+    payLevel: 9,
+    basicPay: 53100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Irrigation, PHE',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 130,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE',
+    promotionYear: 7,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'West Bengal home state, WBCS Group A',
+    whyHi: 'WB होम स्टेट, WBCS ग्रुप A',
+    scope: 'state',
+    stateLink: 'wb'
+  },
+  'opsc-ae': {
+    name: 'OPSC AE',
+    fullName: 'Odisha PSC Assistant Engineer',
+    payLevel: 10,
+    basicPay: 56100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'Works, RD, H&UD',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 90,
+    nextNotification: 'Q4 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE',
+    promotionYear: 7,
+    promotionBump: 1.20,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Odisha home state, Class I Gazetted',
+    whyHi: 'ओडिशा होम स्टेट, क्लास I गज़ेटेड',
+    scope: 'state',
+    stateLink: 'od'
+  },
+  'apsc-ae': {
+    name: 'APSC AE',
+    fullName: 'Assam PSC Assistant Engineer',
+    payLevel: 9,
+    basicPay: 53100,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Irrigation, PHE',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 70,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'AE \u2192 EE \u2192 SE',
+    promotionYear: 7,
+    promotionBump: 1.18,
+    type: 'State AE',
+    hraTier: 'state',
+    why: 'Assam home state, Group A',
+    whyHi: 'असम होम स्टेट, ग्रुप A',
+    scope: 'state',
+    stateLink: 'as'
+  },
+  'upsssc-je': {
+    name: 'UPSSSC JE',
+    fullName: 'UP SSSC Junior Engineer',
+    payLevel: 6,
+    basicPay: 35400,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PWD, Jal Nigam, UPRNN',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 4016,
+    nextNotification: 'Q2 2026',
+    promotionPath: 'JE \u2192 AE',
+    promotionYear: 8,
+    promotionBump: 1.15,
+    type: 'State JE',
+    hraTier: 'state',
+    why: 'Home state UP, lower competition than SSC',
+    whyHi: 'UP होम स्टेट, SSC से कम कॉम्पटीशन',
+    scope: 'state',
+    stateLink: 'up'
+  },
+  'btsc-je': {
+    name: 'BTSC JE',
+    fullName: 'Bihar TSC Junior Engineer',
+    payLevel: 7,
+    basicPay: 35400,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'PHED, Water Resources, RW',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 2920,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'JE \u2192 AE',
+    promotionYear: 8,
+    promotionBump: 1.15,
+    type: 'State JE',
+    hraTier: 'state',
+    why: 'Bihar home state, GP 4,600',
+    whyHi: 'बिहार होम स्टेट, GP 4,600',
+    scope: 'state',
+    stateLink: 'bihar'
+  },
+  'rsmssb-je': {
+    name: 'RSMSSB JE',
+    fullName: 'Rajasthan SMSSB Junior Engineer',
+    payLevel: 10,
+    basicPay: 33800,
+    probationBasic: 23700,
+    probationYears: 2,
+    departments: 'PWD, PHED, Water Resources',
+    eligibility: ['diploma', 'btech'],
+    branches: ['civil', 'mechanical', 'electrical'],
+    vacancies: 774,
+    nextNotification: 'Q3 2026',
+    promotionPath: 'JEN \u2192 AEN \u2192 XEN',
+    promotionYear: 8,
+    promotionBump: 1.18,
+    type: 'State JE',
+    hraTier: 'state',
+    why: 'OPS restored, fixed pay in probation',
+    whyHi: 'OPS बहाल, प्रोबेशन में फिक्स्ड पे',
+    scope: 'state',
+    stateLink: 'rajasthan',
+    pension: 'OPS'
+  },
+  'gate-psu': {
+    name: 'GATE PSU',
+    fullName: 'PSU Recruitment via GATE',
+    payLevel: 0,
+    basicPay: 60000,
+    probationBasic: null,
+    probationYears: 0,
+    departments: 'ONGC, GAIL, BPCL, IOCL, NTPC, BHEL',
+    eligibility: ['btech'],
+    branches: ['civil', 'mechanical', 'electrical', 'electronics'],
+    vacancies: 800,
+    nextNotification: 'Feb 2026 (GATE)',
+    promotionPath: 'E1 \u2192 E2 \u2192 E3 \u2192 E4',
+    promotionYear: 4,
+    promotionBump: 1.20,
+    type: 'PSU AE',
+    hraTier: 'psu',
+    why: 'Highest CTC (15-25 LPA), Maharatna PSUs',
+    whyHi: 'सबसे ज़्यादा CTC (15-25 LPA), महारत्न PSU',
+    scope: 'central'
+  }
+};
+const STATE_CITY_CLASS = {
+  'delhi': 'X',
+  'up': 'Y',
+  'bihar': 'Y',
+  'mp': 'Y',
+  'rajasthan': 'Y',
+  'hp': 'Z',
+  'gujarat': 'X',
+  'tn': 'X',
+  'ka': 'X',
+  'ap': 'Y',
+  'tg': 'X',
+  'kl': 'Y',
+  'wb': 'X',
+  'od': 'Z',
+  'as': 'Z',
+  'other': 'Y'
+};
+const HRA_RATES = {
+  'X': 0.30,
+  'Y': 0.20,
+  'Z': 0.10
+};
+const STATE_LABELS = {
+  'up': 'Uttar Pradesh',
+  'bihar': 'Bihar',
+  'mp': 'Madhya Pradesh',
+  'rajasthan': 'Rajasthan',
+  'hp': 'Himachal Pradesh',
+  'gujarat': 'Gujarat',
+  'delhi': 'Delhi NCR',
+  'tn': 'Tamil Nadu',
+  'ka': 'Karnataka',
+  'ap': 'Andhra Pradesh',
+  'tg': 'Telangana',
+  'kl': 'Kerala',
+  'wb': 'West Bengal',
+  'od': 'Odisha',
+  'as': 'Assam',
+  'other': 'Other state'
+};
+const STATE_LABELS_HI = {
+  'up': 'उत्तर प्रदेश',
+  'bihar': 'बिहार',
+  'mp': 'मध्य प्रदेश',
+  'rajasthan': 'राजस्थान',
+  'hp': 'हिमाचल प्रदेश',
+  'gujarat': 'गुजरात',
+  'delhi': 'दिल्ली NCR',
+  'tn': 'तमिलनाडु',
+  'ka': 'कर्नाटक',
+  'ap': 'आंध्र प्रदेश',
+  'tg': 'तेलंगाना',
+  'kl': 'केरल',
+  'wb': 'पश्चिम बंगाल',
+  'od': 'ओडिशा',
+  'as': 'असम',
+  'other': 'अन्य राज्य'
+};
+const CITY_OPTIONS = [{
+  value: 'auto',
+  label: 'Auto (based on home state)'
+}, {
+  value: 'X',
+  label: 'X-class (Delhi, Mumbai, Bengaluru, Chennai, Kolkata, Hyderabad)'
+}, {
+  value: 'Y',
+  label: 'Y-class (Lucknow, Patna, Bhopal, Jaipur, Pune, etc.)'
+}, {
+  value: 'Z',
+  label: 'Z-class (smaller towns, rural postings)'
+}];
+
+// ============================================================
+// TOPPER STORIES — for testimonial popups
+// ============================================================
+const TOPPER_STORIES = {
+  'ssc-je': {
+    name: 'Rohit Sharma',
+    rank: 'AIR 47',
+    from: 'Allahabad',
+    branch: 'Civil',
+    quote: 'Solved 2,000+ PYQs from Testbook. Cracked SSC JE Civil in 8 months — now posted in CPWD Delhi.'
+  },
+  'rrb-je': {
+    name: 'Priya Mehta',
+    rank: 'AIR 12',
+    from: 'Jaipur',
+    branch: 'Electrical',
+    quote: 'RRB JE Electrical was my dream. Daily mocks + topic-wise revision made it possible.'
+  },
+  'uppsc-ae': {
+    name: 'Amit Singh',
+    rank: 'AIR 23',
+    from: 'Lucknow',
+    branch: 'Civil',
+    quote: 'UPPSC AE — 8 months prep, 6 hrs/day. Now Group B Gazetted in UP PWD.'
+  },
+  'mppsc-ae': {
+    name: 'Neha Patel',
+    rank: 'AIR 8',
+    from: 'Bhopal',
+    branch: 'Mechanical',
+    quote: 'MPPSC AE Mech is competitive but doable. Class I officer at 26 — life-changing.'
+  },
+  'rpsc-ae': {
+    name: 'Vikas Choudhary',
+    rank: 'AIR 31',
+    from: 'Jodhpur',
+    branch: 'Civil',
+    quote: 'OPS pension is the dealbreaker. RPSC AEN means lifetime security for my family.'
+  },
+  'gate-psu': {
+    name: 'Saurabh Gupta',
+    rank: 'GATE 99.4 percentile',
+    from: 'Delhi',
+    branch: 'Mechanical',
+    quote: 'GATE 99+ percentile got me ONGC E1 — ₹18 LPA CTC straight out of college.'
+  },
+  default: {
+    name: 'Anjali Kumari',
+    rank: 'AIR 45',
+    from: 'Patna',
+    branch: 'Civil',
+    quote: 'Started with zero direction. The exam matcher tool helped me focus on the right exam — cracked it in 10 months.'
+  }
+};
+
+// ============================================================
+// VACANCY HISTORY (for predictor / context)
+// ============================================================
+const VACANCY_TREND = {
+  'ssc-je': [968, 1324, 1731],
+  'rrb-je': [13487, 7951, 7951],
+  'uppsc-ae': [281, 415, 600],
+  'mppsc-ae': [219, 350, 350]
+};
+
+// ============================================================
+// DECISION ENGINE
+// ============================================================
+function recommendExams(answers) {
+  const {
+    qualification,
+    branch,
+    age,
+    state,
+    relocate,
+    attempts,
+    hours
+  } = answers;
+  const scoredExams = [];
+  Object.keys(EXAMS).forEach(function (id) {
+    const exam = EXAMS[id];
+    if (exam.eligibility.indexOf(qualification) === -1) return;
+    if (exam.branches.indexOf(branch) === -1) return;
+    let score = 50;
+    const isHomeStateExam = exam.scope === 'state' && exam.stateLink === state;
+    const isCentralExam = exam.scope === 'central';
+    const userHasMappedState = state !== 'other' && state !== '';
+    if (isHomeStateExam) score += 25;
+    if (isCentralExam) score += 8;
+    if (relocate === 'home-only') {
+      if (userHasMappedState) {
+        if (!isHomeStateExam && !isCentralExam) score -= 40;
+      } else {
+        if (!isCentralExam) score -= 35;
+      }
+    }
+    if (relocate === 'anywhere' && isCentralExam) score += 12;
+    if (age === '30+' && exam.type === 'State JE') score -= 15;
+    if (age === '<23' && exam.type === 'State AE') score -= 5;
+    score += Math.min(exam.vacancies / 250, 15);
+    if (attempts === '3+' && exam.type === 'State JE') score += 6;
+    if (attempts === 'first' && exam.type === 'PSU AE' && hours !== '8+') score -= 12;
+    if (hours === '<4' && exam.type === 'PSU AE') score -= 18;
+    if (hours === '8+' && exam.type === 'PSU AE') score += 10;
+    if (hours === '<4' && exam.type === 'State AE') score -= 5;
+    if (qualification === 'btech') {
+      if (exam.type === 'State AE') score += 12;
+      if (exam.type === 'PSU AE') score += 6;
+    }
+    if (qualification === 'diploma') {
+      if (exam.type === 'Central JE') score += 10;
+      if (exam.type === 'State JE') score += 6;
+    }
+    scoredExams.push({
+      id: id,
+      exam: exam,
+      score: score
+    });
+  });
+  scoredExams.sort((a, b) => b.score - a.score);
+  const validMatches = scoredExams.filter(s => s.score >= 35);
+  const top = validMatches.slice(0, 3);
+  if (top.length === 0) return [];
+  const topScore = top[0].score;
+  const minScore = Math.min.apply(null, top.map(t => t.score));
+  const range = topScore - minScore || 1;
+  return top.map((s, idx) => Object.assign({}, s.exam, {
+    id: s.id,
+    matchScore: Math.round(95 - idx * 4 - (topScore - s.score) / range * 8)
+  }));
+}
+
+// ============================================================
+// SALARY ENGINE — supports 8th CPC scenarios + city override
+// ============================================================
+function generateProjection(exam, userState, opts) {
+  opts = opts || {};
+  const cpcMode = opts.cpcMode || 'off'; // off | conservative | ambitious
+  const cpcStartYear = opts.cpcStartYear || 2; // year when 8th CPC kicks in
+  const cityOverride = opts.cityOverride || 'auto';
+  const inflationRate = 0.06; // 6% annual inflation for real-value calc
+
+  const cityClass = cityOverride !== 'auto' ? cityOverride : STATE_CITY_CLASS[userState] || 'Y';
+  const hraRate = exam.hraTier === 'x-only' ? 0.30 : HRA_RATES[cityClass];
+  const isPSU = exam.type === 'PSU AE' || exam.type === 'PSU JE';
+  const cpcMultiplier = cpcMode === 'conservative' ? 2.0 : cpcMode === 'ambitious' ? 2.86 : 1.0;
+  const daRate = 0.60;
+  let basic = exam.basicPay;
+  let cumulative = 0;
+  let cumulativeReal = 0;
+  const data = [];
+  for (let year = 1; year <= 10; year++) {
+    if (exam.promotionYear && year === exam.promotionYear) basic = basic * exam.promotionBump;
+    let effectiveBasic = basic;
+    if (exam.probationBasic && year <= exam.probationYears) effectiveBasic = exam.probationBasic;
+
+    // 8th CPC reset — apply fitment factor at startYear
+    let workingBasic = effectiveBasic;
+    let workingDA = daRate;
+    if (cpcMode !== 'off' && year >= cpcStartYear) {
+      workingBasic = effectiveBasic * cpcMultiplier;
+      // After CPC reset, DA resets to 0% then grows ~6%/year
+      workingDA = Math.min(0.06 * (year - cpcStartYear), 0.40);
+    }
+    let monthly, annual;
+    if (isPSU) {
+      const ida = workingBasic * 0.534;
+      const psuHra = workingBasic * (cityClass === 'X' ? 0.24 : 0.16);
+      const perks = workingBasic * 0.35;
+      monthly = workingBasic + ida + psuHra + perks;
+      const annualPRP = workingBasic * 12 * 0.40;
+      annual = monthly * 12 + annualPRP;
+    } else {
+      const da = workingBasic * workingDA;
+      const hra = workingBasic * hraRate;
+      const ta = exam.payLevel >= 9 ? 7200 * (1 + workingDA) : 3600 * (1 + workingDA);
+      monthly = workingBasic + da + hra + ta;
+      annual = monthly * 12;
+    }
+    cumulative += annual;
+    // Inflation-adjusted (real value) — discount future years by inflation
+    const realAnnual = annual / Math.pow(1 + inflationRate, year - 1);
+    cumulativeReal += realAnnual;
+    data.push({
+      year: 'Y' + year,
+      yearNum: year,
+      monthly: Math.round(monthly),
+      annual: Math.round(annual),
+      cumulative: Math.round(cumulative),
+      cumulativeReal: Math.round(cumulativeReal),
+      realMonthly: Math.round(monthly / Math.pow(1 + inflationRate, year - 1)),
+      basic: Math.round(workingBasic)
+    });
+    if (!exam.probationBasic || year > exam.probationYears) basic = basic * 1.03;
+  }
+  return data;
+}
+
+// ============================================================
+// FORMATTERS
+// ============================================================
+const inrFormatter = new Intl.NumberFormat('en-IN', {
+  maximumFractionDigits: 0
+});
+function formatINR(num) {
+  if (num >= 10000000) return '\u20B9' + (num / 10000000).toFixed(2) + ' Cr';
+  if (num >= 100000) return '\u20B9' + (num / 100000).toFixed(2) + ' L';
+  if (num >= 1000) return '\u20B9' + (num / 1000).toFixed(0) + 'K';
+  return '\u20B9' + inrFormatter.format(num);
+}
+function formatINRFull(num) {
+  return '\u20B9' + inrFormatter.format(num);
+}
+
+// ============================================================
+// ICONS — Unicode emojis (no SVG bugs)
+// ============================================================
+const ICO = {
+  sparkles: '\u2728',
+  check: '\u2713',
+  chevronRight: '\u203A',
+  share: '\u2197',
+  trophy: '\uD83C\uDFC6',
+  rupee: '\u20B9',
+  trending: '\uD83D\uDCC8',
+  award: '\uD83C\uDFC5',
+  briefcase: '\uD83D\uDCBC',
+  refresh: '\u21BB',
+  star: '\u2B50',
+  cap: '\uD83C\uDF93',
+  pin: '\uD83D\uDCCD',
+  clock: '\u23F1',
+  target: '\uD83C\uDFAF',
+  users: '\uD83D\uDC65',
+  cal: '\uD83D\uDCC5',
+  arrow: '\u2192',
+  zap: '\u26A1',
+  book: '\uD83D\uDCD6',
+  alert: '\u26A0',
+  download: '\u2B07',
+  whatsapp: '\uD83D\uDCAC',
+  chat: '\uD83D\uDCAD',
+  bell: '\uD83D\uDD14',
+  timeline: '\uD83D\uDCC8',
+  globe: '\uD83C\uDF10',
+  close: '\u2715',
+  medal: '\uD83C\uDFC5',
+  flame: '\uD83D\uDD25',
+  moneybag: '\uD83D\uDCB0'
+};
+// ============================================================
+// QUESTIONS — generated dynamically per language
+// ============================================================
+function getQuestions(lang) {
+  const stateLabels = lang === 'hi' ? STATE_LABELS_HI : STATE_LABELS;
+  return [{
+    key: 'qualification',
+    label: t(lang, 'qualLabel'),
+    icon: ICO.cap,
+    options: [{
+      value: 'diploma',
+      label: t(lang, 'diploma'),
+      sub: t(lang, 'diplomaSub')
+    }, {
+      value: 'btech',
+      label: t(lang, 'btech'),
+      sub: t(lang, 'btechSub')
+    }]
+  }, {
+    key: 'branch',
+    label: t(lang, 'branchLabel'),
+    icon: ICO.book,
+    options: [{
+      value: 'civil',
+      label: t(lang, 'civil'),
+      sub: t(lang, 'civilSub')
+    }, {
+      value: 'mechanical',
+      label: t(lang, 'mechanical'),
+      sub: t(lang, 'mechSub')
+    }, {
+      value: 'electrical',
+      label: t(lang, 'electrical'),
+      sub: t(lang, 'elecSub')
+    }, {
+      value: 'electronics',
+      label: t(lang, 'electronics'),
+      sub: t(lang, 'enSub')
+    }]
+  }, {
+    key: 'age',
+    label: t(lang, 'ageLabel'),
+    icon: ICO.clock,
+    options: [{
+      value: '<23',
+      label: t(lang, 'age23m')
+    }, {
+      value: '23-26',
+      label: t(lang, 'age2326')
+    }, {
+      value: '27-30',
+      label: t(lang, 'age2730')
+    }, {
+      value: '30+',
+      label: t(lang, 'age30p')
+    }]
+  }, {
+    key: 'state',
+    label: t(lang, 'stateLabel'),
+    icon: ICO.pin,
+    options: Object.keys(stateLabels).map(k => ({
+      value: k,
+      label: stateLabels[k]
+    }))
+  }, {
+    key: 'relocate',
+    label: t(lang, 'relocateLabel'),
+    icon: ICO.target,
+    options: [{
+      value: 'anywhere',
+      label: t(lang, 'anywhere'),
+      sub: t(lang, 'anywhereSub')
+    }, {
+      value: 'flexible',
+      label: t(lang, 'flexible')
+    }, {
+      value: 'home-only',
+      label: t(lang, 'homeOnly'),
+      sub: t(lang, 'homeOnlySub')
+    }]
+  }, {
+    key: 'attempts',
+    label: t(lang, 'attemptsLabel'),
+    icon: ICO.trophy,
+    options: [{
+      value: 'first',
+      label: t(lang, 'firstAttempt'),
+      sub: t(lang, 'firstSub')
+    }, {
+      value: '1-2',
+      label: t(lang, 'attempt12')
+    }, {
+      value: '3+',
+      label: t(lang, 'attempt3p'),
+      sub: t(lang, 'a3pSub')
+    }]
+  }, {
+    key: 'hours',
+    label: t(lang, 'hoursLabel'),
+    icon: ICO.zap,
+    options: [{
+      value: '<4',
+      label: t(lang, 'hours4m')
+    }, {
+      value: '4-6',
+      label: t(lang, 'hours46')
+    }, {
+      value: '6-8',
+      label: t(lang, 'hours68')
+    }, {
+      value: '8+',
+      label: t(lang, 'hours8p'),
+      sub: t(lang, 'h8Sub')
+    }]
+  }];
+}
+
+// ============================================================
+// SHARED UI BITS
+// ============================================================
+function Logo({
+  lang,
+  setLang
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between w-full"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-lg shadow-md"
+  }, "T"), /*#__PURE__*/React.createElement("div", {
+    className: "leading-tight"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-base font-bold text-gray-900"
+  }, "Testbook"), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wider text-emerald-600 font-semibold"
+  }, "SuperCoaching"))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setLang(lang === 'en' ? 'hi' : 'en'),
+    className: "flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 hover:border-emerald-500 rounded-lg text-xs font-semibold text-gray-700 transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.globe), /*#__PURE__*/React.createElement("span", null, lang === 'en' ? 'हिंदी' : 'English')));
+}
+function ProgressBar({
+  current,
+  total
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500",
+    style: {
+      width: current / total * 100 + '%'
+    }
+  }));
+}
+
+// ============================================================
+// SKELETON LOADING — Testbook-branded
+// ============================================================
+function SkeletonScreen() {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "max-w-4xl mx-auto py-6 space-y-6 animate-pulse"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center space-y-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-8 w-64 bg-emerald-100 rounded-full mx-auto"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-10 w-96 bg-gray-200 rounded mx-auto"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-4 w-72 bg-gray-100 rounded mx-auto"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 md:grid-cols-3 gap-4"
+  }, [1, 2, 3].map(i => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "bg-white rounded-2xl border-2 border-gray-100 p-5 space-y-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-3 w-16 bg-gray-100 rounded"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-6 w-32 bg-gray-200 rounded"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-12 w-12 bg-emerald-100 rounded-full ml-auto"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-3 w-full bg-gray-100 rounded"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-3 w-5/6 bg-gray-100 rounded"
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl border border-gray-100 p-6 space-y-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-6 w-48 bg-gradient-to-r from-emerald-100 to-emerald-50 rounded"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "h-64 bg-gradient-to-br from-emerald-50 to-white rounded-xl"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "text-center text-emerald-600 font-medium text-sm"
+  }, "Loading your personalised report..."));
+}
+// ============================================================
+// LANDING
+// ============================================================
+function Landing({
+  onStart,
+  lang
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "text-center max-w-2xl mx-auto py-8 sm:py-12"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700 mb-6"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.sparkles), " ", t(lang, 'title')), /*#__PURE__*/React.createElement("h1", {
+    className: "text-3xl sm:text-5xl font-bold text-gray-900 leading-tight mb-4"
+  }, t(lang, 'headline1'), /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+    className: "bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent"
+  }, t(lang, 'headline2'))), /*#__PURE__*/React.createElement("p", {
+    className: "text-base sm:text-lg text-gray-600 mb-8 max-w-xl mx-auto"
+  }, t(lang, 'subhead')), /*#__PURE__*/React.createElement("button", {
+    onClick: onStart,
+    className: "inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold px-8 py-4 rounded-xl shadow-lg transition-all text-base"
+  }, t(lang, 'startQuiz'), " ", /*#__PURE__*/React.createElement("span", null, ICO.chevronRight)), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-4 sm:gap-6 mt-12 max-w-xl mx-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl sm:text-3xl font-bold text-emerald-700"
+  }, "17+"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs sm:text-sm text-gray-500 mt-1"
+  }, t(lang, 'examsAnalyzed'))), /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl sm:text-3xl font-bold text-emerald-700"
+  }, "90"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs sm:text-sm text-gray-500 mt-1"
+  }, t(lang, 'secondsToResult'))), /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl sm:text-3xl font-bold text-emerald-700"
+  }, "10-yr"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs sm:text-sm text-gray-500 mt-1"
+  }, t(lang, 'salaryProjection')))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-10 flex items-center justify-center gap-2 text-xs text-gray-400"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-500"
+  }, ICO.check), " ", t(lang, 'verifiedData')));
+}
+
+// ============================================================
+// QUIZ
+// ============================================================
+function Quiz({
+  answers,
+  setAnswers,
+  onComplete,
+  currentQ,
+  setCurrentQ,
+  lang
+}) {
+  const QUESTIONS = useMemo(() => getQuestions(lang), [lang]);
+  const question = QUESTIONS[currentQ];
+  const [transitioning, setTransitioning] = useState(false);
+  function handleSelect(value) {
+    if (transitioning) return;
+    setTransitioning(true);
+    const newAnswers = Object.assign({}, answers);
+    newAnswers[question.key] = value;
+    setAnswers(newAnswers);
+    setTimeout(() => {
+      if (currentQ < QUESTIONS.length - 1) setCurrentQ(currentQ + 1);else onComplete(newAnswers);
+      setTransitioning(false);
+    }, 250);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "max-w-xl mx-auto py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-xs text-gray-500 mb-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, t(lang, 'questionOf', {
+    n: currentQ + 1,
+    total: QUESTIONS.length
+  })), /*#__PURE__*/React.createElement("span", null, t(lang, 'percentComplete', {
+    p: Math.round((currentQ + 1) / QUESTIONS.length * 100)
+  }))), /*#__PURE__*/React.createElement(ProgressBar, {
+    current: currentQ + 1,
+    total: QUESTIONS.length
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center mb-4 text-2xl"
+  }, question.icon), /*#__PURE__*/React.createElement("h2", {
+    className: "text-xl sm:text-2xl font-bold text-gray-900 mb-6"
+  }, question.label), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-2.5"
+  }, question.options.map(opt => {
+    const selected = answers[question.key] === opt.value;
+    let cls = 'w-full text-left px-4 sm:px-5 py-4 rounded-xl border-2 transition-all duration-150 ';
+    cls += selected ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-emerald-400 bg-white';
+    if (transitioning) cls += ' opacity-70 cursor-wait';
+    return /*#__PURE__*/React.createElement("button", {
+      key: opt.value,
+      onClick: () => handleSelect(opt.value),
+      disabled: transitioning,
+      className: cls
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: 'font-semibold ' + (selected ? 'text-emerald-900' : 'text-gray-900')
+    }, opt.label), opt.sub ? /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-gray-500 mt-0.5"
+    }, opt.sub) : null), selected ? /*#__PURE__*/React.createElement("div", {
+      className: "w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs"
+    }, ICO.check) : /*#__PURE__*/React.createElement("div", {
+      className: "w-6 h-6 rounded-full border-2 border-gray-300"
+    })));
+  })), currentQ > 0 ? /*#__PURE__*/React.createElement("button", {
+    onClick: () => setCurrentQ(currentQ - 1),
+    className: "mt-6 text-sm text-gray-500 hover:text-emerald-700 font-medium"
+  }, t(lang, 'back')) : null));
+}
+
+// ============================================================
+// CAPTURE WALL
+// ============================================================
+function CaptureWall({
+  contact,
+  setContact,
+  onUnlock,
+  lang
+}) {
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  function handleSubmit() {
+    const newErrors = {};
+    if (!contact.name || !contact.name.trim()) newErrors.name = lang === 'hi' ? 'आवश्यक' : 'Required';
+    if (!contact.phone || !/^[6-9]\d{9}$/.test(contact.phone)) newErrors.phone = lang === 'hi' ? '10 अंक का सही नंबर' : 'Enter valid 10-digit mobile';
+    if (!contact.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) newErrors.email = lang === 'hi' ? 'सही ईमेल डालें' : 'Enter valid email';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setSubmitting(true);
+    // Simulate quick capture animation then proceed
+    setTimeout(() => {
+      setSubmitting(false);
+      onUnlock();
+    }, 600);
+  }
+  function setField(field, value) {
+    const c = Object.assign({}, contact);
+    c[field] = value;
+    setContact(c);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "max-w-md mx-auto py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl border border-emerald-100 shadow-lg overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-emerald-600 to-emerald-800 px-6 py-8 text-center text-white"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-4xl mb-2"
+  }, ICO.sparkles), /*#__PURE__*/React.createElement("h2", {
+    className: "text-xl font-bold mb-1"
+  }, t(lang, 'matchesReady')), /*#__PURE__*/React.createElement("p", {
+    className: "text-emerald-100 text-sm"
+  }, t(lang, 'unlockSubhead'))), /*#__PURE__*/React.createElement("div", {
+    className: "p-6 space-y-3"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-xs font-semibold text-gray-700 uppercase tracking-wide block mb-1.5"
+  }, t(lang, 'yourName')), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: contact.name || '',
+    onChange: e => setField('name', e.target.value),
+    className: 'w-full px-4 py-3 rounded-lg border-2 text-sm focus:outline-none focus:border-emerald-500 ' + (errors.name ? 'border-red-300' : 'border-gray-200'),
+    placeholder: lang === 'hi' ? 'मोहित कुमार' : 'Mohit Kumar'
+  }), errors.name ? /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-red-500 mt-1"
+  }, errors.name) : null), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-xs font-semibold text-gray-700 uppercase tracking-wide block mb-1.5"
+  }, t(lang, 'mobileNumber')), /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500"
+  }, "+91"), /*#__PURE__*/React.createElement("input", {
+    type: "tel",
+    maxLength: "10",
+    value: contact.phone || '',
+    onChange: e => setField('phone', e.target.value.replace(/\D/g, '')),
+    className: 'w-full pl-12 pr-4 py-3 rounded-lg border-2 text-sm focus:outline-none focus:border-emerald-500 ' + (errors.phone ? 'border-red-300' : 'border-gray-200'),
+    placeholder: "9876543210"
+  })), errors.phone ? /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-red-500 mt-1"
+  }, errors.phone) : null), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-xs font-semibold text-gray-700 uppercase tracking-wide block mb-1.5"
+  }, t(lang, 'emailAddress')), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    value: contact.email || '',
+    onChange: e => setField('email', e.target.value),
+    className: 'w-full px-4 py-3 rounded-lg border-2 text-sm focus:outline-none focus:border-emerald-500 ' + (errors.email ? 'border-red-300' : 'border-gray-200'),
+    placeholder: "mohit@example.com"
+  }), errors.email ? /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-red-500 mt-1"
+  }, errors.email) : null), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSubmit,
+    disabled: submitting,
+    className: "w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-60"
+  }, submitting ? /*#__PURE__*/React.createElement("span", null, ICO.sparkles, " ...") : /*#__PURE__*/React.createElement(React.Fragment, null, t(lang, 'unlockReport'), " ", /*#__PURE__*/React.createElement("span", null, ICO.arrow))), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 text-[11px] text-gray-500 justify-center pt-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-500"
+  }, ICO.check), t(lang, 'instantDelivery')))));
+}
+
+// ============================================================
+// NO MATCH SCREEN
+// ============================================================
+function NoMatchScreen({
+  onRestart,
+  lang
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "max-w-md mx-auto py-12 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-5xl mb-4"
+  }, ICO.alert), /*#__PURE__*/React.createElement("h2", {
+    className: "text-xl font-bold text-gray-900 mb-2"
+  }, t(lang, 'noMatches')), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-gray-600 mb-6"
+  }, t(lang, 'noMatchesSub')), /*#__PURE__*/React.createElement("button", {
+    onClick: onRestart,
+    className: "inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-6 py-3 rounded-xl"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.refresh), " ", t(lang, 'retakeQuiz')));
+}
+// ============================================================
+// SHARE MODAL — Generates shareable WhatsApp + copy link
+// ============================================================
+function ShareModal({
+  exam,
+  totalEarnings,
+  contact,
+  lang,
+  onClose
+}) {
+  const [copied, setCopied] = useState(false);
+  const shareText = lang === 'hi' ? `मैंने ${exam.fullName} के लिए अपनी 10 साल की कमाई कैलकुलेट की — कुल ${formatINR(totalEarnings)}!\n\nआप भी अपना AE/JE एग्ज़ाम मैच और सैलरी प्रोजेक्शन देखें: ${window.location.href}\n\nTestbook SuperCoaching द्वारा` : `I just calculated my 10-year earnings for ${exam.fullName} — ₹${(totalEarnings / 10000000).toFixed(2)} Cr total!\n\nFind your AE/JE exam match + salary projection here: ${window.location.href}\n\nBy Testbook SuperCoaching`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(shareText)}`;
+  function copyLink() {
+    navigator.clipboard.writeText(shareText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = shareText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg"
+  }, ICO.close), /*#__PURE__*/React.createElement("div", {
+    className: "text-3xl mb-1"
+  }, ICO.share), /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg font-bold"
+  }, lang === 'hi' ? 'अपनी रिपोर्ट शेयर करें' : 'Share Your Report'), /*#__PURE__*/React.createElement("p", {
+    className: "text-emerald-100 text-xs mt-1"
+  }, lang === 'hi' ? 'पैरेंट्स, दोस्तों या सोशल मीडिया पर भेजें' : 'Send to parents, friends, or social media')), /*#__PURE__*/React.createElement("div", {
+    className: "p-5 space-y-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-50 rounded-lg p-3 text-xs text-gray-700 leading-relaxed border border-gray-100"
+  }, shareText.split('\n').map((line, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: i === 0 ? 'font-bold text-emerald-800 mb-1' : 'mb-1'
+  }, line))), /*#__PURE__*/React.createElement("a", {
+    href: whatsappUrl,
+    target: "_blank",
+    rel: "noopener",
+    className: "flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCAC"), " ", lang === 'hi' ? 'WhatsApp पर शेयर करें' : 'Share on WhatsApp'), /*#__PURE__*/React.createElement("a", {
+    href: telegramUrl,
+    target: "_blank",
+    rel: "noopener",
+    className: "flex items-center justify-center gap-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, "\u2708"), " ", lang === 'hi' ? 'Telegram पर शेयर करें' : 'Share on Telegram'), /*#__PURE__*/React.createElement("button", {
+    onClick: copyLink,
+    className: "flex items-center justify-center gap-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 rounded-xl transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, copied ? ICO.check : '📋'), " ", copied ? lang === 'hi' ? 'कॉपी हो गया!' : 'Copied!' : lang === 'hi' ? 'टेक्स्ट कॉपी करें' : 'Copy Text'))));
+}
+
+// ============================================================
+// AI COUNSELLOR CHAT — frontend ready for Claude API plug-in
+// ============================================================
+function AICounsellor({
+  selectedExam,
+  recommendations,
+  answers,
+  lang,
+  onClose
+}) {
+  const [messages, setMessages] = useState([{
+    role: 'assistant',
+    text: t(lang, 'counsellorWelcome')
+  }]);
+  const [input, setInput] = useState('');
+  const [thinking, setThinking] = useState(false);
+  const messagesEndRef = useRef(null);
+  useEffect(() => {
+    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({
+      behavior: 'smooth'
+    });
+  }, [messages]);
+
+  // Suggested prompt chips
+  const suggestions = lang === 'hi' ? ['किस एग्ज़ाम पर फोकस करूं?', 'सैलरी का रियलिस्टिक एस्टीमेट?', '6 महीने में कैसे क्रैक करें?', 'OPS vs NPS — क्या बेहतर?'] : ['Which exam should I focus on?', 'Realistic salary estimate?', 'How to crack in 6 months?', 'OPS vs NPS — which is better?'];
+  async function sendMessage(text) {
+    const userMsg = {
+      role: 'user',
+      text: text
+    };
+    const newMessages = messages.concat([userMsg]);
+    setMessages(newMessages);
+    setInput('');
+    setThinking(true);
+
+    // Build context for Claude API call
+    const systemContext = `You are an AE/JE exam career counsellor for Testbook SuperCoaching, India. The user just took a quiz and got these top 3 recommendations: ${recommendations.map(r => r.name + ' (' + r.matchScore + '%)').join(', ')}. They selected ${selectedExam.fullName} to view in detail. Their profile: qualification=${answers.qualification}, branch=${answers.branch}, age=${answers.age}, state=${answers.state}, hours/day=${answers.hours}. Reply in ${lang === 'hi' ? 'Hindi' : 'English'}, 2-3 sentences max, candid and helpful.`;
+    try {
+      // === CLAUDE API CALL — wire your API key in production ===
+      // Currently using a smart rule-based fallback for demo.
+      // To enable live AI, replace this block with a fetch to your /api/chat endpoint.
+      const reply = await mockClaudeResponse(text, selectedExam, recommendations, answers, lang);
+      setMessages(newMessages.concat([{
+        role: 'assistant',
+        text: reply
+      }]));
+    } catch (err) {
+      setMessages(newMessages.concat([{
+        role: 'assistant',
+        text: lang === 'hi' ? 'माफ़ कीजिए, कुछ गड़बड़ हुई। दोबारा कोशिश करें।' : 'Sorry, something went wrong. Try again.'
+      }]));
+    }
+    setThinking(false);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full shadow-2xl flex flex-col",
+    style: {
+      height: '85vh',
+      maxHeight: '700px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-emerald-600 to-emerald-800 p-4 text-white flex items-center justify-between rounded-t-2xl"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-xl"
+  }, ICO.chat), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-sm"
+  }, "AI Career Counsellor"), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-emerald-100"
+  }, lang === 'hi' ? 'Testbook द्वारा संचालित' : 'Powered by Testbook'))), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg"
+  }, ICO.close)), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
+  }, messages.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: 'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')
+  }, /*#__PURE__*/React.createElement("div", {
+    className: 'max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ' + (m.role === 'user' ? 'bg-emerald-600 text-white rounded-br-md' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md')
+  }, m.text))), thinking && /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-start"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white border border-gray-200 px-4 py-2.5 rounded-2xl rounded-bl-md"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-2 h-2 bg-emerald-400 rounded-full animate-bounce",
+    style: {
+      animationDelay: '0ms'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "w-2 h-2 bg-emerald-400 rounded-full animate-bounce",
+    style: {
+      animationDelay: '150ms'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "w-2 h-2 bg-emerald-400 rounded-full animate-bounce",
+    style: {
+      animationDelay: '300ms'
+    }
+  })))), /*#__PURE__*/React.createElement("div", {
+    ref: messagesEndRef
+  })), messages.length <= 1 && /*#__PURE__*/React.createElement("div", {
+    className: "px-3 pb-2 flex flex-wrap gap-1.5"
+  }, suggestions.map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    onClick: () => sendMessage(s),
+    className: "text-[11px] px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-full font-medium"
+  }, s))), /*#__PURE__*/React.createElement("div", {
+    className: "p-3 border-t border-gray-100 flex gap-2"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: input,
+    onChange: e => setInput(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter' && input.trim()) sendMessage(input.trim());
+    },
+    placeholder: t(lang, 'typeMessage'),
+    className: "flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-emerald-500"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => input.trim() && sendMessage(input.trim()),
+    disabled: !input.trim() || thinking,
+    className: "px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl disabled:opacity-50"
+  }, t(lang, 'send')))));
+}
+
+// ============================================================
+// MOCK CLAUDE RESPONSE — replace with real API call
+// ============================================================
+async function mockClaudeResponse(question, exam, recs, answers, lang) {
+  await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
+  const q = question.toLowerCase();
+  const hi = lang === 'hi';
+
+  // Rule-based contextual responses
+  if (q.includes('focus') || q.includes('फोकस') || q.includes('which') || q.includes('कौन')) {
+    const top = recs[0];
+    return hi ? `आपके प्रोफाइल के हिसाब से ${top.name} पर फोकस करें — ${top.matchScore}% मैच, ${top.vacancies} वैकेंसी। अगले 6 महीने इसी एक एग्ज़ाम पर जीतोड़ मेहनत कीजिए।` : `Based on your profile, focus on ${top.name} — ${top.matchScore}% match with ${top.vacancies} vacancies. Stick to this one exam for the next 6 months.`;
+  }
+  if (q.includes('salary') || q.includes('सैलरी') || q.includes('earn')) {
+    return hi ? `${exam.name} में पहले साल आपकी इन-हैंड लगभग ₹${(exam.basicPay * 1.8 / 1000).toFixed(0)}K होगी। 10 साल में प्रमोशन और DA बढ़ोतरी के साथ कुल कमाई कैलकुलेटर में दिखाई गई है।` : `For ${exam.name}, your year-1 in-hand will be ~₹${(exam.basicPay * 1.8 / 1000).toFixed(0)}K. The 10-year cumulative shown in the calculator includes promotions, DA growth, and HRA.`;
+  }
+  if (q.includes('crack') || q.includes('क्रैक') || q.includes('6 month') || q.includes('महीने')) {
+    return hi ? `6 महीने में क्रैक करना possible है अगर रोज़ ${answers.hours === '8+' ? '8+' : '6-8'} घंटे लगातार दें। पहले 2 महीने syllabus कवर करें, अगले 2 PYQs, आखिरी 2 mock tests + revision। SuperCoaching की structured course मदद करेगी।` : `6 months is doable if you put in ${answers.hours === '8+' ? '8+' : '6-8'} hours daily. Months 1-2: syllabus, 3-4: PYQs, 5-6: mock tests + revision. SuperCoaching's structured course can compress this.`;
+  }
+  if (q.includes('ops') || q.includes('nps') || q.includes('pension')) {
+    return hi ? 'OPS में 50% लास्ट सैलरी की गारंटीड पेंशन मिलती है। Rajasthan और HP ने OPS बहाल किया है। NPS मार्केट-लिंक्ड है। लॉन्ग-टर्म वैल्यू के लिए OPS बेहतर, सेंट्रल जॉब्स में बस NPS/UPS विकल्प है।' : 'OPS gives guaranteed 50% of last salary as pension. Rajasthan and HP have restored it. NPS is market-linked. Long-term, OPS wins on value, but central jobs only offer NPS/UPS.';
+  }
+  // Fallback
+  return hi ? `अच्छा सवाल! ${exam.name} के context में, मैं suggest करूंगा कि अभी आप अपनी weakness identify करें (ब्रांच टेक्निकल vs रीज़निंग vs GA) और टॉप 2 पर daily 3 घंटे फोकस करें।` : `Great question! For ${exam.name}, I'd suggest you identify your weakest area (technical vs reasoning vs GA) and spend 3 hrs/day on the top 2 weak zones. Need help with study plan? Just ask.`;
+}
+
+// ============================================================
+// VACANCY ALERT MODAL
+// ============================================================
+function VacancyAlert({
+  exam,
+  lang,
+  onClose,
+  contact
+}) {
+  const [subscribed, setSubscribed] = useState(false);
+  const [phone, setPhone] = useState(contact.phone || '');
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+  function handleSubscribe() {
+    if (!/^[6-9]\d{9}$/.test(phone)) return;
+    // Store in localStorage as a stub — will be wired to backend
+    const subs = JSON.parse(localStorage.getItem('vacancy_subs') || '[]');
+    subs.push({
+      exam: exam.id,
+      phone,
+      whatsappOptIn,
+      ts: Date.now()
+    });
+    localStorage.setItem('vacancy_subs', JSON.stringify(subs));
+    setSubscribed(true);
+  }
+  if (subscribed) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 text-center",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-5xl mb-3"
+    }, ICO.check), /*#__PURE__*/React.createElement("h3", {
+      className: "text-xl font-bold text-gray-900 mb-2"
+    }, lang === 'hi' ? 'अलर्ट सेट हो गया!' : 'Alert Set!'), /*#__PURE__*/React.createElement("p", {
+      className: "text-sm text-gray-600 mb-4"
+    }, lang === 'hi' ? `जैसे ही ${exam.name} की अगली नोटिफिकेशन आएगी, हम आपको WhatsApp + SMS पर तुरंत बताएंगे।` : `We'll WhatsApp + SMS you the moment the next ${exam.name} notification drops.`), /*#__PURE__*/React.createElement("button", {
+      onClick: onClose,
+      className: "bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-6 py-2.5 rounded-lg"
+    }, lang === 'hi' ? 'ठीक है' : 'Got it')));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-orange-500 to-orange-700 p-5 text-white relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+  }, ICO.close), /*#__PURE__*/React.createElement("div", {
+    className: "text-3xl mb-1"
+  }, ICO.bell), /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg font-bold"
+  }, lang === 'hi' ? `${exam.name} वैकेंसी अलर्ट` : `${exam.name} Vacancy Alert`), /*#__PURE__*/React.createElement("p", {
+    className: "text-orange-100 text-xs mt-1"
+  }, lang === 'hi' ? 'नोटिफिकेशन आते ही WhatsApp + SMS पर तुरंत सूचना' : 'Get instant WhatsApp + SMS the moment notifications drop')), /*#__PURE__*/React.createElement("div", {
+    className: "p-5 space-y-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-xs"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-semibold text-emerald-900 mb-1"
+  }, lang === 'hi' ? 'क्यों ज़रूरी है?' : 'Why this matters'), /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-800"
+  }, lang === 'hi' ? 'पिछले साल, टॉप aspirants ने notification आने के 24 घंटे के अंदर apply किया। आप पीछे न रह जाएं।' : 'Top aspirants apply within 24 hours of notification. Don\'t miss out.')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-xs font-semibold text-gray-700 uppercase tracking-wide block mb-1.5"
+  }, t(lang, 'mobileNumber')), /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500"
+  }, "+91"), /*#__PURE__*/React.createElement("input", {
+    type: "tel",
+    maxLength: "10",
+    value: phone,
+    onChange: e => setPhone(e.target.value.replace(/\D/g, '')),
+    className: "w-full pl-12 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:border-emerald-500 focus:outline-none text-sm",
+    placeholder: "9876543210"
+  }))), /*#__PURE__*/React.createElement("label", {
+    className: "flex items-center gap-2 text-xs text-gray-600"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: whatsappOptIn,
+    onChange: e => setWhatsappOptIn(e.target.checked),
+    className: "w-4 h-4"
+  }), lang === 'hi' ? 'WhatsApp पर भी अलर्ट चाहिए' : 'Also send WhatsApp alerts'), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSubscribe,
+    disabled: !/^[6-9]\d{9}$/.test(phone),
+    className: "w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl"
+  }, lang === 'hi' ? 'अलर्ट सेट करें' : 'Set Alert (Free)'))));
+}
+
+// ============================================================
+// TOPPER TESTIMONIAL POPUP
+// ============================================================
+function TopperPopup({
+  exam,
+  lang,
+  onDismiss
+}) {
+  const story = TOPPER_STORIES[exam.id] || TOPPER_STORIES.default;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed bottom-4 right-4 left-4 sm:left-auto z-40 max-w-sm bg-white border border-emerald-200 rounded-2xl shadow-2xl overflow-hidden animate-fadein"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onDismiss,
+    className: "absolute top-2 right-2 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm z-10"
+  }, ICO.close), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-emerald-50 to-orange-50 px-4 pt-4 pb-2 flex items-start gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+  }, story.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-0 pr-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900 text-sm"
+  }, story.name), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-1 text-[10px] text-emerald-700 font-semibold mt-0.5"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.medal), " ", story.rank, " \xB7 ", story.from))), /*#__PURE__*/React.createElement("div", {
+    className: "px-4 pb-3 text-xs text-gray-700 italic leading-relaxed"
+  }, "\"", story.quote, "\""), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-50 px-4 py-2 text-[10px] text-gray-500 flex items-center justify-between border-t border-gray-100"
+  }, /*#__PURE__*/React.createElement("span", null, lang === 'hi' ? `${exam.name} टॉपर` : `${exam.name} Topper`), /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-700 font-semibold"
+  }, ICO.flame, " ", lang === 'hi' ? 'सच्ची कहानी' : 'Real story')));
+}
+
+// ============================================================
+// CAREER TIMELINE MODAL
+// ============================================================
+function CareerTimeline({
+  exam,
+  projection,
+  lang,
+  onClose
+}) {
+  // Build milestone events
+  const milestones = [];
+  milestones.push({
+    year: 1,
+    title: lang === 'hi' ? 'जॉइनिंग' : 'Joining',
+    desc: `${exam.fullName} - ${exam.payLevel ? 'Pay Level ' + exam.payLevel : 'IDA-PSU'}`,
+    salary: projection[0].monthly,
+    icon: '🎯'
+  });
+  if (exam.probationBasic) {
+    milestones.push({
+      year: exam.probationYears + 1,
+      title: lang === 'hi' ? 'प्रोबेशन समाप्त' : 'Probation Ends',
+      desc: lang === 'hi' ? 'पूरा पे मैट्रिक्स लागू' : 'Full pay matrix kicks in',
+      salary: projection[exam.probationYears].monthly,
+      icon: '✅'
+    });
+  }
+  milestones.push({
+    year: 3,
+    title: lang === 'hi' ? 'पहला MACP' : '1st MACP',
+    desc: lang === 'hi' ? 'फाइनेंशियल अपग्रेडेशन' : 'Financial upgrade',
+    salary: projection[2].monthly,
+    icon: '⬆'
+  });
+  if (exam.promotionYear) {
+    const path = exam.promotionPath.split('\u2192');
+    milestones.push({
+      year: exam.promotionYear,
+      title: lang === 'hi' ? 'प्रमोशन' : 'Promotion',
+      desc: `${path[0].trim()} → ${path[1] ? path[1].trim() : 'Next level'}`,
+      salary: projection[exam.promotionYear - 1].monthly,
+      icon: '🏆'
+    });
+  }
+  milestones.push({
+    year: 10,
+    title: lang === 'hi' ? '10 साल पूरे' : '10 Years Complete',
+    desc: lang === 'hi' ? `कुल ₹${(projection[9].cumulative / 10000000).toFixed(2)} Cr कमाए` : `${formatINR(projection[9].cumulative)} earned`,
+    salary: projection[9].monthly,
+    icon: '💰'
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl max-w-2xl w-full shadow-2xl my-4",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-r from-gray-900 to-emerald-900 p-5 text-white rounded-t-2xl relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+  }, ICO.close), /*#__PURE__*/React.createElement("div", {
+    className: "text-3xl mb-1"
+  }, ICO.timeline), /*#__PURE__*/React.createElement("h3", {
+    className: "text-xl font-bold"
+  }, exam.fullName), /*#__PURE__*/React.createElement("p", {
+    className: "text-emerald-100 text-sm mt-1"
+  }, lang === 'hi' ? '10 साल का करियर रोडमैप' : '10-Year Career Roadmap')), /*#__PURE__*/React.createElement("div", {
+    className: "p-5 sm:p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "absolute left-7 top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-300 via-emerald-500 to-orange-400"
+  }), milestones.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex gap-4 mb-5 last:mb-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-2xl shadow-md flex-shrink-0 z-10 border-4 border-white"
+  }, m.icon), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 pt-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wider text-emerald-700 font-bold"
+  }, lang === 'hi' ? 'साल' : 'Year', " ", m.year), /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900"
+  }, m.title), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-gray-600 mt-0.5"
+  }, m.desc), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-emerald-700 font-semibold mt-1"
+  }, lang === 'hi' ? 'मासिक' : 'Monthly', ": ", formatINR(m.salary)))))))));
+}
+// ============================================================
+// COMPARE 2 EXAMS VIEW
+// ============================================================
+function CompareView({
+  recommendations,
+  userState,
+  opts,
+  lang,
+  onClose
+}) {
+  const [examA, setExamA] = useState(recommendations[0]);
+  const [examB, setExamB] = useState(recommendations[1] || recommendations[0]);
+  const projA = useMemo(() => generateProjection(examA, userState, opts), [examA, userState, opts]);
+  const projB = useMemo(() => generateProjection(examB, userState, opts), [examB, userState, opts]);
+
+  // Merge for chart
+  const chartData = projA.map((p, i) => ({
+    year: p.year,
+    [examA.name]: p.cumulative,
+    [examB.name]: projB[i].cumulative
+  }));
+  const totalA = projA[9].cumulative;
+  const totalB = projB[9].cumulative;
+  const diff = totalA - totalB;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl max-w-3xl w-full shadow-2xl my-4",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-r from-gray-900 to-emerald-900 p-5 text-white rounded-t-2xl relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+  }, ICO.close), /*#__PURE__*/React.createElement("h3", {
+    className: "text-xl font-bold"
+  }, lang === 'hi' ? '2 एग्ज़ाम तुलना करें' : 'Compare 2 Exams'), /*#__PURE__*/React.createElement("p", {
+    className: "text-emerald-100 text-xs mt-1"
+  }, lang === 'hi' ? 'किसमें ज़्यादा कमाई — तुरंत देखें' : 'See which one earns you more — instantly')), /*#__PURE__*/React.createElement("div", {
+    className: "p-5 grid grid-cols-2 gap-3"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block"
+  }, lang === 'hi' ? 'एग्ज़ाम A' : 'Exam A'), /*#__PURE__*/React.createElement("select", {
+    value: examA.id,
+    onChange: e => setExamA(recommendations.find(r => r.id === e.target.value) || recommendations[0]),
+    className: "w-full px-3 py-2.5 rounded-lg border-2 border-emerald-300 bg-emerald-50 font-bold text-emerald-900 text-sm"
+  }, recommendations.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.id
+  }, r.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block"
+  }, lang === 'hi' ? 'एग्ज़ाम B' : 'Exam B'), /*#__PURE__*/React.createElement("select", {
+    value: examB.id,
+    onChange: e => setExamB(recommendations.find(r => r.id === e.target.value) || recommendations[0]),
+    className: "w-full px-3 py-2.5 rounded-lg border-2 border-orange-300 bg-orange-50 font-bold text-orange-900 text-sm"
+  }, recommendations.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.id
+  }, r.name))))), /*#__PURE__*/React.createElement("div", {
+    className: "px-5 pb-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-64"
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: "100%"
+  }, /*#__PURE__*/React.createElement(AreaChart, {
+    data: chartData,
+    margin: {
+      top: 10,
+      right: 10,
+      left: 0,
+      bottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
+    id: "cgA",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "5%",
+    stopColor: "#10B981",
+    stopOpacity: 0.4
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "95%",
+    stopColor: "#10B981",
+    stopOpacity: 0.02
+  })), /*#__PURE__*/React.createElement("linearGradient", {
+    id: "cgB",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "5%",
+    stopColor: "#F97316",
+    stopOpacity: 0.4
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "95%",
+    stopColor: "#F97316",
+    stopOpacity: 0.02
+  }))), /*#__PURE__*/React.createElement(CartesianGrid, {
+    strokeDasharray: "3 3",
+    stroke: "#f0f0f0"
+  }), /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "year",
+    tick: {
+      fontSize: 11
+    }
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fontSize: 11
+    },
+    tickFormatter: v => v >= 10000000 ? (v / 10000000).toFixed(1) + 'Cr' : (v / 100000).toFixed(0) + 'L'
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    contentStyle: {
+      backgroundColor: '#111827',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '12px'
+    },
+    labelStyle: {
+      color: '#10B981',
+      fontWeight: 'bold'
+    },
+    formatter: v => formatINR(v)
+  }), /*#__PURE__*/React.createElement(Legend, {
+    wrapperStyle: {
+      fontSize: '12px'
+    }
+  }), /*#__PURE__*/React.createElement(Area, {
+    type: "monotone",
+    dataKey: examA.name,
+    stroke: "#10B981",
+    strokeWidth: 2.5,
+    fillOpacity: 1,
+    fill: "url(#cgA)"
+  }), /*#__PURE__*/React.createElement(Area, {
+    type: "monotone",
+    dataKey: examB.name,
+    stroke: "#F97316",
+    strokeWidth: 2.5,
+    fillOpacity: 1,
+    fill: "url(#cgB)"
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: "px-5 pb-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-2 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-emerald-50 border border-emerald-200 rounded-xl p-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-emerald-700 font-semibold uppercase"
+  }, examA.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-lg font-bold text-emerald-900 mt-1"
+  }, formatINR(totalA)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-gray-500"
+  }, lang === 'hi' ? '10 साल' : '10-yr total')), /*#__PURE__*/React.createElement("div", {
+    className: 'border-2 rounded-xl p-3 ' + (diff > 0 ? 'bg-emerald-100 border-emerald-400' : diff < 0 ? 'bg-orange-100 border-orange-400' : 'bg-gray-50 border-gray-200')
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] font-bold uppercase"
+  }, lang === 'hi' ? 'अंतर' : 'Difference'), /*#__PURE__*/React.createElement("div", {
+    className: "text-lg font-bold mt-1"
+  }, diff > 0 ? '+' : '', formatINR(Math.abs(diff))), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-gray-600"
+  }, diff > 0 ? lang === 'hi' ? `${examA.name} बेहतर` : `${examA.name} wins` : diff < 0 ? lang === 'hi' ? `${examB.name} बेहतर` : `${examB.name} wins` : lang === 'hi' ? 'बराबर' : 'Even')), /*#__PURE__*/React.createElement("div", {
+    className: "bg-orange-50 border border-orange-200 rounded-xl p-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-orange-700 font-semibold uppercase"
+  }, examB.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-lg font-bold text-orange-900 mt-1"
+  }, formatINR(totalB)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-gray-500"
+  }, lang === 'hi' ? '10 साल' : '10-yr total'))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 grid grid-cols-2 gap-3 text-xs"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-50 rounded-lg p-3 border border-gray-100"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-emerald-700 mb-2"
+  }, examA.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-600 space-y-1"
+  }, /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'पे लेवल' : 'Pay Level', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, examA.payLevel || 'IDA-PSU')), /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'वैकेंसी' : 'Vacancies', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, inrFormatter.format(examA.vacancies))), /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'टाइप' : 'Type', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, examA.type)), examA.pension === 'OPS' ? /*#__PURE__*/React.createElement("div", {
+    className: "text-orange-700 font-semibold"
+  }, ICO.sparkles, " OPS") : null)), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-50 rounded-lg p-3 border border-gray-100"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-orange-700 mb-2"
+  }, examB.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-600 space-y-1"
+  }, /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'पे लेवल' : 'Pay Level', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, examB.payLevel || 'IDA-PSU')), /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'वैकेंसी' : 'Vacancies', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, inrFormatter.format(examB.vacancies))), /*#__PURE__*/React.createElement("div", null, lang === 'hi' ? 'टाइप' : 'Type', ": ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, examB.type)), examB.pension === 'OPS' ? /*#__PURE__*/React.createElement("div", {
+    className: "text-orange-700 font-semibold"
+  }, ICO.sparkles, " OPS") : null))))));
+}
+
+// ============================================================
+// PDF GENERATION HELPER (uses jsPDF from CDN)
+// ============================================================
+function downloadPDF(contact, exam, recommendations, projection, lang, opts) {
+  if (typeof window.jspdf === 'undefined') {
+    alert(lang === 'hi' ? 'PDF लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करें।' : 'PDF library not loaded. Refresh the page.');
+    return;
+  }
+  const {
+    jsPDF
+  } = window.jspdf;
+  const doc = new jsPDF();
+  const cityClass = STATE_CITY_CLASS[opts.userState] || 'Y';
+  const totalEarnings = projection[9].cumulative;
+
+  // Header
+  doc.setFillColor(5, 150, 105);
+  doc.rect(0, 0, 210, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Testbook SuperCoaching', 15, 18);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('AE/JE Career Calculator - Personal Report', 15, 27);
+  doc.setFontSize(8);
+  doc.text('Generated: ' + new Date().toLocaleDateString('en-IN'), 15, 35);
+
+  // Greeting
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Hi ${contact.name || 'Aspirant'},`, 15, 55);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Here is your personalised AE/JE exam matching report based on the quiz.', 15, 63);
+
+  // Top 3 Matches
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(5, 150, 105);
+  doc.text('Your Top 3 Exam Matches', 15, 78);
+  doc.setTextColor(17, 24, 39);
+  let y = 88;
+  recommendations.forEach((r, i) => {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${i + 1}. ${r.fullName}`, 18, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Match: ${r.matchScore}% | Vacancies: ${r.vacancies} | Notification: ${r.nextNotification}`, 18, y + 5);
+    doc.setTextColor(75, 85, 99);
+    doc.text(r.why, 18, y + 11, {
+      maxWidth: 175
+    });
+    doc.setTextColor(17, 24, 39);
+    y += 22;
+  });
+
+  // Selected exam detail
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(5, 150, 105);
+  doc.text(`Detailed Projection: ${exam.fullName}`, 15, y + 5);
+  doc.setTextColor(17, 24, 39);
+  y += 15;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  const stats = [['Departments', exam.departments], ['Pay Level', exam.payLevel ? `Pay Level ${exam.payLevel}` : 'IDA-PSU'], ['Starting Basic', '\u20B9' + inrFormatter.format(exam.basicPay) + '/month'], ['Year-1 In-hand', '\u20B9' + inrFormatter.format(projection[0].monthly) + '/month'], ['Year-10 In-hand', '\u20B9' + inrFormatter.format(projection[9].monthly) + '/month'], ['Promotion Path', exam.promotionPath], ['10-Year Total', '\u20B9' + (totalEarnings / 10000000).toFixed(2) + ' Cr'], ['Posting City Class', cityClass + '-class'], ['DA Rate', '60% (as of Jan 2026)'], ['Pension', exam.pension === 'OPS' ? 'OPS - Old Pension Scheme (RESTORED)' : 'NPS (default) / UPS option']];
+  stats.forEach(row => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(row[0] + ':', 18, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(row[1]), 70, y, {
+      maxWidth: 130
+    });
+    y += 6;
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+  });
+
+  // Year-by-year table on new page if needed
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
+  y += 5;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(5, 150, 105);
+  doc.text('Year-by-Year Salary Projection', 15, y);
+  doc.setTextColor(17, 24, 39);
+  y += 8;
+
+  // Table header
+  doc.setFillColor(236, 253, 245);
+  doc.rect(15, y - 4, 180, 7, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Year', 18, y);
+  doc.text('Basic', 40, y);
+  doc.text('Monthly Gross', 75, y);
+  doc.text('Annual', 120, y);
+  doc.text('Cumulative', 155, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  projection.forEach(p => {
+    doc.text(p.year, 18, y);
+    doc.text('\u20B9' + inrFormatter.format(p.basic), 40, y);
+    doc.text('\u20B9' + inrFormatter.format(p.monthly), 75, y);
+    doc.text('\u20B9' + (p.annual / 100000).toFixed(2) + ' L', 120, y);
+    doc.text('\u20B9' + (p.cumulative / 100000).toFixed(2) + ' L', 155, y);
+    y += 6;
+  });
+
+  // Footer + CTA on last page
+  if (y > 250) {
+    doc.addPage();
+    y = 30;
+  }
+  y += 10;
+  doc.setFillColor(255, 247, 237);
+  doc.rect(15, y, 180, 25, 'F');
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(234, 88, 12);
+  doc.text('Ready to start your prep?', 20, y + 8);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(17, 24, 39);
+  doc.text(`Join Testbook SuperCoaching for ${exam.name} - Live classes, mock tests, PYQs.`, 20, y + 14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(5, 150, 105);
+  doc.text('Visit: testbook.com/super-coaching', 20, y + 20);
+
+  // Disclaimer footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(107, 114, 128);
+  doc.text('Calculations based on 7th Pay Commission, DA at 60% (Jan 2026). 8th CPC scenario:' + (opts.cpcMode || 'off') + '. City class: ' + cityClass + '. Includes annual increments and one promotion. For reference only.', 15, 285, {
+    maxWidth: 180
+  });
+
+  // Save
+  const filename = `Testbook_AEJE_Report_${exam.name.replace(/\s+/g, '_')}_${(contact.name || 'aspirant').replace(/\s+/g, '_')}.pdf`;
+  doc.save(filename);
+}
+// ============================================================
+// RESULT PAGE — main orchestrator with all features
+// ============================================================
+function Result({
+  recommendations,
+  contact,
+  userState,
+  onRestart,
+  lang
+}) {
+  const [selectedExam, setSelectedExam] = useState(recommendations[0]);
+
+  // Feature toggles
+  const [cpcMode, setCpcMode] = useState('off');
+  const [cityOverride, setCityOverride] = useState('auto');
+  const [showInflation, setShowInflation] = useState(false);
+
+  // Modals
+  const [showShare, setShowShare] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [showTopper, setShowTopper] = useState(false);
+  useEffect(() => {
+    if (recommendations[0]) setSelectedExam(recommendations[0]);
+  }, [recommendations]);
+
+  // Show topper popup after 8 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowTopper(true), 8000);
+    return () => clearTimeout(timer);
+  }, [selectedExam]);
+  const opts = useMemo(() => ({
+    cpcMode,
+    cityOverride,
+    userState
+  }), [cpcMode, cityOverride, userState]);
+  const projection = useMemo(() => generateProjection(selectedExam, userState, opts), [selectedExam, userState, opts]);
+  const totalEarnings = projection[projection.length - 1].cumulative;
+  const totalReal = projection[projection.length - 1].cumulativeReal;
+  const cityClass = cityOverride !== 'auto' ? cityOverride : STATE_CITY_CLASS[userState] || 'Y';
+  const examWhy = lang === 'hi' && selectedExam.whyHi ? selectedExam.whyHi : selectedExam.why;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "max-w-4xl mx-auto py-4 sm:py-6 space-y-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 rounded-full text-xs font-semibold text-emerald-700 mb-3"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.check), " ", t(lang, 'reportUnlocked')), /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl sm:text-3xl font-bold text-gray-900"
+  }, t(lang, 'hiName', {
+    name: contact.name || 'Aspirant'
+  })), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-gray-500 mt-1"
+  }, t(lang, 'personalisedDesc'))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 md:grid-cols-3 gap-3"
+  }, recommendations.map((exam, idx) => {
+    const isSelected = selectedExam.id === exam.id;
+    const why = lang === 'hi' && exam.whyHi ? exam.whyHi : exam.why;
+    return /*#__PURE__*/React.createElement("button", {
+      key: exam.id,
+      onClick: () => setSelectedExam(exam),
+      className: 'text-left p-4 sm:p-5 rounded-2xl border-2 transition-all relative overflow-hidden ' + (isSelected ? 'border-emerald-600 bg-gradient-to-br from-emerald-50 to-white shadow-lg' : 'border-gray-200 bg-white hover:border-emerald-300')
+    }, idx === 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "absolute top-0 right-0 bg-gradient-to-l from-orange-500 to-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg"
+    }, ICO.star, " ", t(lang, 'bestFit')) : null, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-start justify-between mb-2 mt-1"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold"
+    }, t(lang, 'matchN', {
+      n: idx + 1
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "font-bold text-gray-900 text-base sm:text-lg leading-tight"
+    }, exam.name)), /*#__PURE__*/React.createElement("div", {
+      className: "text-right"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-2xl font-bold text-emerald-700"
+    }, exam.matchScore, "%"), /*#__PURE__*/React.createElement("div", {
+      className: "text-[10px] text-gray-500"
+    }, t(lang, 'match')))), /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-gray-600 mb-3 leading-snug"
+    }, why), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between text-[11px] pt-2 border-t border-gray-100"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-gray-500"
+    }, ICO.users, " ", inrFormatter.format(exam.vacancies), " ", t(lang, 'posts')), /*#__PURE__*/React.createElement("span", {
+      className: "text-gray-500"
+    }, ICO.cal, " ", exam.nextNotification)));
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2 items-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold"
+  }, t(lang, 'cpcMode')), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
+  }, [{
+    v: 'off',
+    label: lang === 'hi' ? 'अभी' : 'No 8th'
+  }, {
+    v: 'conservative',
+    label: '2.0x'
+  }, {
+    v: 'ambitious',
+    label: '2.86x'
+  }].map(o => /*#__PURE__*/React.createElement("button", {
+    key: o.v,
+    onClick: () => setCpcMode(o.v),
+    className: 'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all border ' + (cpcMode === o.v ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400')
+  }, o.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-1 flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold"
+  }, t(lang, 'cityOverride')), /*#__PURE__*/React.createElement("select", {
+    value: cityOverride,
+    onChange: e => setCityOverride(e.target.value),
+    className: "px-2 py-1 rounded-md border border-gray-200 text-[11px] font-medium focus:outline-none focus:border-emerald-500 truncate"
+  }, CITY_OPTIONS.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o.value,
+    value: o.value
+  }, o.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-1"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "text-[10px] uppercase tracking-wider text-gray-500 font-semibold"
+  }, lang === 'hi' ? 'महंगाई' : 'Inflation'), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowInflation(!showInflation),
+    className: 'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all border ' + (showInflation ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-200 hover:border-orange-400')
+  }, showInflation ? lang === 'hi' ? 'चालू' : 'On' : lang === 'hi' ? 'बंद' : 'Off')))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-r from-gray-900 to-emerald-900 text-white p-5 sm:p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-start justify-between flex-wrap gap-2"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wider text-emerald-300 font-semibold mb-1"
+  }, t(lang, 'earningsProjection')), /*#__PURE__*/React.createElement("h3", {
+    className: "text-xl sm:text-2xl font-bold"
+  }, selectedExam.fullName), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-emerald-100 mt-1"
+  }, selectedExam.departments), selectedExam.pension === 'OPS' ? /*#__PURE__*/React.createElement("div", {
+    className: "inline-block mt-2 px-2 py-0.5 bg-orange-500/20 border border-orange-300/30 rounded-full text-[10px] font-bold text-orange-200"
+  }, ICO.sparkles, " ", t(lang, 'opsRestored')) : null, cpcMode !== 'off' ? /*#__PURE__*/React.createElement("div", {
+    className: "inline-block ml-1 mt-2 px-2 py-0.5 bg-blue-500/20 border border-blue-300/30 rounded-full text-[10px] font-bold text-blue-200"
+  }, "8th CPC: ", cpcMode === 'conservative' ? '2.0x' : '2.86x') : null), /*#__PURE__*/React.createElement("div", {
+    className: "text-right"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wider text-emerald-300 font-semibold mb-1"
+  }, t(lang, 'tenYearTotal')), /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl sm:text-3xl font-bold text-orange-300"
+  }, formatINR(showInflation ? totalReal : totalEarnings)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-emerald-200 mt-0.5"
+  }, showInflation ? lang === 'hi' ? 'आज की कीमत में' : "in today's value" : '', showInflation ? ' · ' : '', t(lang, 'classCity', {
+    c: cityClass
+  })), showInflation && /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-orange-200 mt-1 italic"
+  }, "(", lang === 'hi' ? 'मूल' : 'Nominal', ": ", formatINR(totalEarnings), ")")))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 border-b border-gray-100"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "p-4 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-600 text-sm mb-1"
+  }, ICO.rupee), /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900 text-sm sm:text-base"
+  }, formatINRFull(selectedExam.basicPay)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wide text-gray-500 mt-0.5"
+  }, t(lang, 'startingBasic'))), /*#__PURE__*/React.createElement("div", {
+    className: "p-4 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-600 text-sm mb-1"
+  }, ICO.briefcase), /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900 text-sm sm:text-base"
+  }, formatINRFull(projection[0].monthly)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wide text-gray-500 mt-0.5"
+  }, t(lang, 'y1Monthly'))), /*#__PURE__*/React.createElement("div", {
+    className: "p-4 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-600 text-sm mb-1"
+  }, ICO.trending), /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900 text-xs"
+  }, selectedExam.promotionPath), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wide text-gray-500 mt-0.5"
+  }, t(lang, 'promotionPath'))), /*#__PURE__*/React.createElement("div", {
+    className: "p-4 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-600 text-sm mb-1"
+  }, ICO.award), /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-900 text-sm sm:text-base"
+  }, selectedExam.payLevel ? 'Level ' + selectedExam.payLevel : 'IDA-PSU'), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] uppercase tracking-wide text-gray-500 mt-0.5"
+  }, t(lang, 'payLevel')))), selectedExam.probationBasic ? /*#__PURE__*/React.createElement("div", {
+    className: "bg-orange-50 border-b border-orange-100 px-5 py-3 text-xs text-orange-900"
+  }, /*#__PURE__*/React.createElement("strong", null, ICO.alert, " ", t(lang, 'probationNote')), " ", t(lang, 'probationDesc', {
+    y: selectedExam.probationYears,
+    p: formatINRFull(selectedExam.probationBasic),
+    n: selectedExam.probationYears + 1
+  })) : null, /*#__PURE__*/React.createElement("div", {
+    className: "p-4 sm:p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2"
+  }, t(lang, 'cumulativeEarnings'), " (", t(lang, 'classCity', {
+    c: cityClass
+  }), ")"), /*#__PURE__*/React.createElement("div", {
+    className: "h-64 sm:h-72"
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: "100%"
+  }, /*#__PURE__*/React.createElement(AreaChart, {
+    data: projection,
+    margin: {
+      top: 10,
+      right: 10,
+      left: 0,
+      bottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
+    id: "colorAmt",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "5%",
+    stopColor: "#10B981",
+    stopOpacity: 0.4
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "95%",
+    stopColor: "#10B981",
+    stopOpacity: 0.02
+  })), /*#__PURE__*/React.createElement("linearGradient", {
+    id: "colorReal",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "5%",
+    stopColor: "#F97316",
+    stopOpacity: 0.3
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "95%",
+    stopColor: "#F97316",
+    stopOpacity: 0.02
+  }))), /*#__PURE__*/React.createElement(CartesianGrid, {
+    strokeDasharray: "3 3",
+    stroke: "#f0f0f0"
+  }), /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "year",
+    stroke: "#9CA3AF",
+    tick: {
+      fontSize: 11
+    }
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    stroke: "#9CA3AF",
+    tick: {
+      fontSize: 11
+    },
+    tickFormatter: v => v >= 10000000 ? (v / 10000000).toFixed(1) + 'Cr' : (v / 100000).toFixed(0) + 'L'
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    contentStyle: {
+      backgroundColor: '#111827',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '12px',
+      padding: '8px 10px',
+      color: '#fff'
+    },
+    labelStyle: {
+      color: '#10B981',
+      fontWeight: 'bold'
+    },
+    formatter: (value, name, p) => {
+      const item = p.payload;
+      return [`${lang === 'hi' ? 'मासिक' : 'Monthly'}: ${formatINR(showInflation ? item.realMonthly : item.monthly)} | ${lang === 'hi' ? 'टोटल' : 'Total'}: ${formatINR(showInflation ? item.cumulativeReal : item.cumulative)}`, ''];
+    }
+  }), /*#__PURE__*/React.createElement(Area, {
+    type: "monotone",
+    dataKey: showInflation ? "cumulativeReal" : "cumulative",
+    stroke: showInflation ? "#F97316" : "#10B981",
+    strokeWidth: 2.5,
+    fillOpacity: 1,
+    fill: showInflation ? "url(#colorReal)" : "url(#colorAmt)"
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 grid grid-cols-5 sm:grid-cols-10 gap-1 text-center"
+  }, projection.map((p, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "bg-gray-50 rounded-md p-1.5 border border-gray-100"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[9px] uppercase text-gray-500 font-semibold"
+  }, p.year), /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] sm:text-xs font-bold text-emerald-700"
+  }, formatINR(showInflation ? p.realMonthly : p.monthly))))))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 sm:grid-cols-4 gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowCompare(true),
+    disabled: recommendations.length < 2,
+    className: "flex items-center justify-center gap-1.5 bg-white border-2 border-gray-200 hover:border-emerald-500 disabled:opacity-40 text-gray-800 font-semibold px-3 py-3 rounded-xl text-xs transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCA"), " ", t(lang, 'compare')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowTimeline(true),
+    className: "flex items-center justify-center gap-1.5 bg-white border-2 border-gray-200 hover:border-emerald-500 text-gray-800 font-semibold px-3 py-3 rounded-xl text-xs transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.timeline), " ", t(lang, 'careerTimeline')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowAlert(true),
+    className: "flex items-center justify-center gap-1.5 bg-white border-2 border-gray-200 hover:border-orange-500 text-gray-800 font-semibold px-3 py-3 rounded-xl text-xs transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.bell), " ", t(lang, 'setVacancyAlert')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowChat(true),
+    className: "flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold px-3 py-3 rounded-xl text-xs transition-all shadow-md"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.chat), " ", t(lang, 'askCounsellor'))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-2xl border-2 border-orange-200 p-5 sm:p-6 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "inline-flex items-center gap-1 px-2.5 py-1 bg-orange-500 text-white rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
+  }, ICO.star, " ", lang === 'hi' ? 'सीमित ऑफर' : 'Limited Time'), /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg sm:text-xl font-bold text-gray-900 mb-1"
+  }, lang === 'hi' ? `${selectedExam.name} की तैयारी SuperCoaching के साथ` : `Start your ${selectedExam.name} prep with SuperCoaching`), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-gray-600 mb-4"
+  }, lang === 'hi' ? 'लाइव क्लासेज़, मॉक टेस्ट, PYQs और 1:1 मेंटरिंग' : 'Live classes, mock tests, PYQs and 1:1 mentoring'), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col sm:flex-row gap-2 justify-center"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all text-sm"
+  }, ICO.target, " ", t(lang, 'joinSC')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => downloadPDF(contact, selectedExam, recommendations, projection, lang, opts),
+    className: "bg-white border-2 border-gray-200 hover:border-emerald-500 text-gray-900 font-semibold px-6 py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.download), " ", t(lang, 'downloadPDF')))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col sm:flex-row gap-2 justify-center pt-1"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowShare(true),
+    className: "flex items-center justify-center gap-2 bg-white border-2 border-gray-200 hover:border-emerald-500 text-gray-700 font-semibold px-5 py-2.5 rounded-lg text-sm transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.share), " ", t(lang, 'shareWithParents')), /*#__PURE__*/React.createElement("button", {
+    onClick: onRestart,
+    className: "flex items-center justify-center gap-2 bg-white border-2 border-gray-200 hover:border-gray-400 text-gray-700 font-semibold px-5 py-2.5 rounded-lg text-sm transition-all"
+  }, /*#__PURE__*/React.createElement("span", null, ICO.refresh), " ", t(lang, 'retakeQuiz'))), /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-gray-400 text-center pt-2"
+  }, "7th CPC Pay Matrix \xB7 DA at 60% (Jan 2026) \xB7 ", cityClass, "-class HRA", cpcMode !== 'off' && ` · 8th CPC: ${cpcMode === 'conservative' ? '2.0x' : '2.86x'} from Y2`, showInflation && ` · ${lang === 'hi' ? 'महंगाई 6%' : 'Inflation 6%'}`), showShare && /*#__PURE__*/React.createElement(ShareModal, {
+    exam: selectedExam,
+    totalEarnings: totalEarnings,
+    contact: contact,
+    lang: lang,
+    onClose: () => setShowShare(false)
+  }), showCompare && /*#__PURE__*/React.createElement(CompareView, {
+    recommendations: recommendations,
+    userState: userState,
+    opts: opts,
+    lang: lang,
+    onClose: () => setShowCompare(false)
+  }), showChat && /*#__PURE__*/React.createElement(AICounsellor, {
+    selectedExam: selectedExam,
+    recommendations: recommendations,
+    answers: {
+      qualification: '',
+      branch: '',
+      age: '',
+      state: userState,
+      hours: ''
+    },
+    lang: lang,
+    onClose: () => setShowChat(false)
+  }), showAlert && /*#__PURE__*/React.createElement(VacancyAlert, {
+    exam: selectedExam,
+    lang: lang,
+    contact: contact,
+    onClose: () => setShowAlert(false)
+  }), showTimeline && /*#__PURE__*/React.createElement(CareerTimeline, {
+    exam: selectedExam,
+    projection: projection,
+    lang: lang,
+    onClose: () => setShowTimeline(false)
+  }), showTopper && /*#__PURE__*/React.createElement(TopperPopup, {
+    exam: selectedExam,
+    lang: lang,
+    onDismiss: () => setShowTopper(false)
+  }));
+}
+// ============================================================
+// MAIN APP
+// ============================================================
+function App() {
+  const [stage, setStage] = useState('landing');
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [contact, setContact] = useState({});
+  const [recommendations, setRecommendations] = useState([]);
+  const [lang, setLang] = useState(() => {
+    try {
+      return localStorage.getItem('aeje_lang') || 'en';
+    } catch (e) {
+      return 'en';
+    }
+  });
+  const [computing, setComputing] = useState(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem('aeje_lang', lang);
+    } catch (e) {}
+  }, [lang]);
+  function handleStart() {
+    setStage('quiz');
+    setCurrentQ(0);
+  }
+  function handleQuizComplete(finalAnswers) {
+    setRecommendations(recommendExams(finalAnswers));
+    setStage('capture');
+  }
+  function handleUnlock() {
+    setComputing(true);
+    setStage('result');
+    // Show skeleton briefly, then real result
+    setTimeout(() => setComputing(false), 900);
+  }
+  function handleRestart() {
+    setStage('landing');
+    setCurrentQ(0);
+    setAnswers({});
+    setContact({});
+    setRecommendations([]);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-orange-50/20"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-5xl mx-auto px-4 py-3"
+  }, /*#__PURE__*/React.createElement(Logo, {
+    lang: lang,
+    setLang: setLang
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "px-4 pb-12"
+  }, stage === 'landing' && /*#__PURE__*/React.createElement(Landing, {
+    onStart: handleStart,
+    lang: lang
+  }), stage === 'quiz' && /*#__PURE__*/React.createElement(Quiz, {
+    answers: answers,
+    setAnswers: setAnswers,
+    onComplete: handleQuizComplete,
+    currentQ: currentQ,
+    setCurrentQ: setCurrentQ,
+    lang: lang
+  }), stage === 'capture' && /*#__PURE__*/React.createElement(CaptureWall, {
+    contact: contact,
+    setContact: setContact,
+    onUnlock: handleUnlock,
+    lang: lang
+  }), stage === 'result' && computing && /*#__PURE__*/React.createElement(SkeletonScreen, null), stage === 'result' && !computing && recommendations.length === 0 && /*#__PURE__*/React.createElement(NoMatchScreen, {
+    onRestart: handleRestart,
+    lang: lang
+  }), stage === 'result' && !computing && recommendations.length > 0 && /*#__PURE__*/React.createElement(Result, {
+    recommendations: recommendations,
+    contact: contact,
+    userState: answers.state,
+    onRestart: handleRestart,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "border-t border-gray-100 bg-white/50 py-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-5xl mx-auto px-4 text-center text-[11px] text-gray-400"
+  }, t(lang, 'builtWith'), " \xB7 DA 60% (Jan 2026) \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-700 font-medium"
+  }, "\xA9 Testbook SuperCoaching"))));
+}
+
+// Mount
+const rootEl = document.getElementById('root');
+rootEl.innerHTML = '';
+const root = ReactDOM.createRoot(rootEl);
+root.render(/*#__PURE__*/React.createElement(App, null));
+window.__appMounted = true;
+  </script>
+</body>
+</html>
